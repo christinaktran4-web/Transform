@@ -26,6 +26,7 @@ Each week, copy `weekly-input-form.txt`, fill it in (winner names, brand of the 
 | 5 | `05-product-spotlight.html` | 3 stacked product cards ("Fresh From The Shelf") |
 | 5b | `05b-single-product-card.html` | One extra product card, drop in if you need a 4th |
 | 6 | `06-themed-section.html` | Swappable event tie-in (World Cup, 4/20, holidays, etc.) |
+| 6 | `06-fourth-of-july.html` | Seasonal variant — holiday stock-up message + closed-for-holiday notice card |
 | 7 | `07-cta-button.html` | Closing CTA button to the menu |
 | 8 | `08-footer.html` | Address + unsubscribe |
 | — | `09-divider.html` | Optional thin spacer if two same-background sections sit back to back |
