@@ -1,0 +1,22 @@
+Copy this, fill it in, paste it to Claude in chat. Leave a field blank or write "skip"
+to drop that section from the email entirely.
+
+WEEK OF: [date]
+
+Weekly winner: [name, e.g. Chris M.]
+Monthly winner: [name, or "skip" if not a monthly-winner week]
+
+Brand of the week: [brand name]
+Brand blurb: [one sentence, optional — Claude will write one if left blank]
+
+Products (3-4):
+1. [category] / [brand] / [strain or flavor] / [size & format]
+2. [category] / [brand] / [strain or flavor] / [size & format]
+3. [category] / [brand] / [strain or flavor] / [size & format]
+4. [category] / [brand] / [strain or flavor] / [size & format]  (optional)
+
+Theme/event (optional, e.g. World Cup, 4/20, a holiday): [theme, or "skip"]
+
+CTA link: [menu URL, or leave blank to reuse last week's]
+
+Anything else to call out: [free text, optional]

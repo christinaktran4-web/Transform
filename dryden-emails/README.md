@@ -11,13 +11,17 @@ Reusable, copy/paste-ready HTML sections for Alpine IQ's HTML block editor. Ever
 
 For a full send, `templates/weekly-campaign-example.html` has everything already assembled in order — copy the whole file in if Alpine IQ accepts one large HTML block, or paste it section-by-section if it works block-by-block.
 
+## Weekly workflow
+
+Each week, copy `weekly-input-form.txt`, fill it in (winner names, brand of the week, this week's products, theme if any — the same info Sean texts over, plus your product picks), and paste the filled-out form to Claude in chat. Claude updates the blocks and the assembled template in place so they're ready to paste into Alpine IQ. Leave any field blank or write "skip" to drop that section for the week.
+
 ## Section order
 
 | # | File | Purpose |
 |---|------|---------|
 | 1 | `01-header.html` | Wordmark + tagline, opens every email |
 | 2 | `02-intro.html` | One-line hook for what's in this week's send |
-| 3 | `03-winner-of-the-week.html` | Giveaway winner shoutout (gold accent) |
+| 3 | `03-winner-of-the-week.html` | Winners Circle — weekly + monthly giveaway shoutout (gold accent) |
 | 4 | `04-brand-spotlight.html` | Featured brand(s) of the week |
 | 5 | `05-product-spotlight.html` | 3 stacked product cards ("Fresh From The Shelf") |
 | 5b | `05b-single-product-card.html` | One extra product card, drop in if you need a 4th |
@@ -39,7 +43,7 @@ For a full send, `templates/weekly-campaign-example.html` has everything already
 ## Placeholders to update each week
 
 - `01-header.html` — none, this one stays static
-- `03-winner-of-the-week.html` — winner name (`C. Pollock`)
+- `03-winner-of-the-week.html` — weekly winner name (`Chris M.`) and monthly winner name (`Jayne E.`); if there's no monthly winner that week, delete the monthly row and divider
 - `04-brand-spotlight.html` — brand name + one-line description
 - `05-product-spotlight.html` / `05b-single-product-card.html` — category, brand, strain/flavor, size/format for each product
 - `06-themed-section.html` — eyebrow, headline, and body copy (swap "World Cup Watch List" for whatever the current tie-in is: 4/20, a holiday, a local event, etc.)
