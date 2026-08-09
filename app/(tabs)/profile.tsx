@@ -6,7 +6,8 @@ import { storage } from '../../lib/storage';
 import { UserProfile } from '../../types';
 import { calcPersonalYear, calcPersonalMonth, calcPersonalDay, calcDestiny, calcLifePath, LIFE_PATH_MEANINGS, PERSONAL_YEAR_MEANINGS, LIFE_PATH_DEEP } from '../../lib/numerology';
 import { getSunSign, getMoonSignApprox, getBirthMoonPhase, ZODIAC_DETAILS, getCuspInfo, ELEMENT_AURA } from '../../lib/astrology';
-import { getHumanDesignGates, HD_TYPES, PROFILE_NAMES, PROFILE_DESCRIPTIONS, INNER_AUTHORITY_DESCRIPTIONS, GATE_THEMES } from '../../lib/humanDesign';
+import { getHumanDesignGates, HD_TYPES, PROFILE_DESCRIPTIONS, INNER_AUTHORITY_DESCRIPTIONS, GATE_THEMES } from '../../lib/humanDesign';
+import { getNatalChart, geocodeLocation, PLANET_SYMBOLS, PLANET_FUNCTIONS, PLANET_IN_SIGN, OUTER_PLANET_IN_SIGN, PlanetPlacement } from '../../lib/ephemeris';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { Label } from '../../components/ui/Label';
 import { Card } from '../../components/ui/Card';
@@ -103,11 +104,11 @@ export default function ProfileScreen() {
   const moonDetail = ZODIAC_DETAILS[moonSign];
   const moonAura = ELEMENT_AURA[moonDetail?.element ?? ''];
   const birthMoon = getBirthMoonPhase(profile.birth_date);
-  const hasRising = !profile.birth_time_unknown && !!profile.birth_time;
   const pyMeaning = PERSONAL_YEAR_MEANINGS[personalNums.year];
   const hdType = profile.human_design_type ? HD_TYPES[profile.human_design_type] : null;
   const hdGates = getHumanDesignGates(profile.birth_date, profile.birth_time);
   const lifePathDeep = LIFE_PATH_DEEP[profile.life_path_number];
+  const natalChart = getNatalChart(profile.birth_date, profile.birth_time, profile.birth_lat, profile.birth_lng);
   const birthDateDisplay = format(parseBirthDate(profile.birth_date), 'MMMM d, yyyy');
   const cuspInfo = getCuspInfo(profile.birth_date);
   const showCuspPicker = !!cuspInfo && !profile.sun_sign_override;
@@ -244,69 +245,63 @@ export default function ProfileScreen() {
         </ReadingSection>
       </Card>
 
-      {/* Astrological Profile */}
+      {/* Natal Chart */}
       <Card>
-        <Label variant="heading" style={{ marginBottom: Spacing.md }}>Astrological Profile</Label>
-
-        <Label variant="micro" color={Colors.textTertiary} style={{ marginBottom: Spacing.xs }}>Sun Sign</Label>
-        <View style={[styles.auraSection, sunAura && {
-          borderColor: sunAura.border,
-          borderWidth: 1,
-          backgroundColor: sunAura.glow,
-          shadowColor: sunAura.color,
-          shadowOpacity: 0.35,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 0 },
-          elevation: 5,
-        }]}>
-          <View style={styles.signRow}>
-            <Label variant="body" style={{ color: sunAura?.color ?? Colors.accent }}>{sunSign} {sunDetail?.symbol}</Label>
-            <Label variant="caption" color={Colors.textTertiary}>{sunDetail?.element} · {sunDetail?.quality}</Label>
+        <View style={styles.natalHeader}>
+          <View>
+            <Label variant="heading">Natal Chart</Label>
+            <Label variant="micro" color={Colors.textTertiary}>
+              {profile.birth_location}{natalChart.hasTime ? ` · ${formatBirthTime(profile.birth_time!)}` : ' · time unknown'}
+            </Label>
           </View>
-          <View style={styles.keywordRow}>
-            {sunDetail?.keywords.map(k => (
-              <View key={k} style={[styles.keyword, sunAura && { borderColor: sunAura.border, borderWidth: 1, backgroundColor: 'transparent' }]}>
-                <Label variant="micro" style={{ color: sunAura?.color ?? Colors.textSecondary }}>{k}</Label>
-              </View>
-            ))}
-          </View>
+          {!natalChart.hasLocation && (
+            <Label variant="micro" style={{ color: Colors.accent }}>Rising requires location</Label>
+          )}
         </View>
 
-        <Divider />
-        <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm, marginBottom: Spacing.xs }}>Moon Sign (birth)</Label>
-        <View style={[styles.auraSection, moonAura && {
-          borderColor: moonAura.border,
-          borderWidth: 1,
-          backgroundColor: moonAura.glow,
-          shadowColor: moonAura.color,
-          shadowOpacity: 0.35,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 0 },
-          elevation: 5,
-        }]}>
-          <View style={styles.signRow}>
-            <Label variant="body" style={{ color: moonAura?.color ?? Colors.text }}>{moonSign} {moonDetail?.symbol}</Label>
-            <Label variant="caption" color={Colors.textTertiary}>{moonDetail?.element} · {moonDetail?.quality}</Label>
-          </View>
-          <Label variant="caption" color={Colors.textSecondary}>Born under the {birthMoon.phaseEmoji} {birthMoon.phase}</Label>
-        </View>
+        {/* Luminaries */}
+        <NatalPlanetRow name="Sun" placement={natalChart.planets.Sun}
+          interpretation={ZODIAC_DETAILS[natalChart.planets.Sun.sign]?.deepDive} />
+        <NatalPlanetRow name="Moon" placement={natalChart.planets.Moon}
+          interpretation={PLANET_IN_SIGN.Moon?.[natalChart.planets.Moon.sign]}
+          note={!natalChart.hasTime ? 'approx.' : undefined} />
 
-        <Divider />
-        <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm, marginBottom: Spacing.xs }}>Rising Sign</Label>
-        {hasRising ? (
-          <ProfileRow label="Birth Time" value={formatBirthTime(profile.birth_time!)} />
-        ) : (
-          <Label variant="caption" color={Colors.textTertiary}>
-            {profile.birth_time_unknown
-              ? 'Unknown — rising sign requires an accurate birth time.'
-              : 'Add birth time to reveal your rising sign.'}
-          </Label>
+        {natalChart.ascendant && (
+          <NatalPlanetRow name="Rising" placement={natalChart.ascendant}
+            interpretation={`Your ${natalChart.ascendant.sign} Rising is the mask you wear and the energy you radiate before people know you. It colors how the world first reads you — and how you instinctively approach every new situation. ${ZODIAC_DETAILS[natalChart.ascendant.sign]?.description ?? ''}`} />
+        )}
+        {natalChart.midheaven && (
+          <NatalPlanetRow name="Midheaven" placement={natalChart.midheaven}
+            interpretation={`Your ${natalChart.midheaven.sign} Midheaven marks your public calling — the reputation you build and the legacy you leave. It describes what you're recognized for and the career energy that feels most authentic.`} />
         )}
 
-        <Divider />
-        <View style={{ marginTop: Spacing.sm }}>
-          <ProfileRow label="Birth Place" value={profile.birth_location} />
-        </View>
+        <View style={styles.natalDivider} />
+
+        {/* Personal planets */}
+        {(['Mercury','Venus','Mars'] as const).map(p => (
+          <NatalPlanetRow key={p} name={p} placement={natalChart.planets[p]}
+            interpretation={PLANET_IN_SIGN[p]?.[natalChart.planets[p].sign]}
+            note={!natalChart.hasTime && p === 'Mercury' ? 'approx.' : undefined} />
+        ))}
+
+        <View style={styles.natalDivider} />
+
+        {/* Social & outer planets */}
+        {(['Jupiter','Saturn'] as const).map(p => (
+          <NatalPlanetRow key={p} name={p} placement={natalChart.planets[p]}
+            interpretation={PLANET_IN_SIGN[p]?.[natalChart.planets[p].sign]} />
+        ))}
+        {(['Uranus','Neptune','Pluto'] as const).map(p => (
+          <NatalPlanetRow key={p} name={p} placement={natalChart.planets[p]}
+            interpretation={OUTER_PLANET_IN_SIGN[p]?.[natalChart.planets[p].sign]}
+            generational />
+        ))}
+
+        {!natalChart.hasLocation && (
+          <TouchableOpacity onPress={() => setEditVisible(true)} style={{ marginTop: Spacing.md }}>
+            <Label variant="caption" style={{ color: Colors.accent }}>Add birth location to see Rising & Midheaven →</Label>
+          </TouchableOpacity>
+        )}
       </Card>
 
       {/* Human Design */}
@@ -566,9 +561,15 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
 
   const currentCuspInfo = getCuspInfo(birthDate);
 
-  const save = () => {
+  const save = async () => {
     if (!name.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || !location.trim()) return;
     const stored24h = birthTimeUnknown ? null : (birthTime.trim() ? timeTo24h(birthTime.trim(), ampm) || null : null);
+    let lat = profile.birth_lat;
+    let lng = profile.birth_lng;
+    if (location.trim() !== profile.birth_location || lat == null) {
+      const coords = await geocodeLocation(location.trim());
+      if (coords) { lat = coords.lat; lng = coords.lon; }
+    }
     const updated: UserProfile = {
       ...profile,
       name: name.trim(),
@@ -576,6 +577,8 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
       birth_time: stored24h,
       birth_time_unknown: birthTimeUnknown,
       birth_location: location.trim(),
+      birth_lat: lat,
+      birth_lng: lng,
       life_path_number: calcLifePath(birthDate.trim()),
       human_design_type: hdType,
       human_design_authority: hdAuthority,
@@ -697,6 +700,52 @@ function ProfileRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function NatalPlanetRow({
+  name,
+  placement,
+  interpretation,
+  note,
+  generational,
+}: {
+  name: string;
+  placement: PlanetPlacement;
+  interpretation?: string;
+  note?: string;
+  generational?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const detail = ZODIAC_DETAILS[placement.sign];
+  const aura = ELEMENT_AURA[detail?.element ?? ''];
+  const sym = PLANET_SYMBOLS[name] ?? '·';
+
+  return (
+    <TouchableOpacity onPress={() => interpretation ? setOpen(v => !v) : null} activeOpacity={interpretation ? 0.7 : 1}>
+      <View style={styles.natalRow}>
+        <Label style={[styles.natalPlanetSym, aura && { color: aura.color }]}>{sym}</Label>
+        <View style={styles.natalPlanetLabel}>
+          <Label variant="caption" color={Colors.textSecondary}>{name}</Label>
+          {generational && <Label variant="micro" color={Colors.textTertiary}>generational</Label>}
+        </View>
+        <View style={styles.natalSignInfo}>
+          <Label variant="body" style={aura ? { color: aura.color } : { color: Colors.text }}>{placement.sign}</Label>
+          <Label variant="micro" color={Colors.textTertiary}>{placement.symbol} {placement.degree}°{note ? ` ${note}` : ''}</Label>
+        </View>
+        {interpretation && (
+          <Label variant="micro" color={Colors.textTertiary} style={{ width: 12 }}>{open ? '−' : '+'}</Label>
+        )}
+      </View>
+      {open && interpretation && (
+        <View style={styles.natalInterpret}>
+          <Label variant="micro" color={Colors.textTertiary} style={styles.natalFunction}>{PLANET_FUNCTIONS[name]}</Label>
+          <Label variant="caption" color={Colors.textSecondary} style={{ lineHeight: 20, fontStyle: 'italic' }}>
+            {interpretation}
+          </Label>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: Spacing.xl, paddingTop: 60, gap: Spacing.md },
@@ -737,6 +786,14 @@ const styles = StyleSheet.create({
   hdTypeIcon: { fontSize: 24, width: 36, textAlign: 'center' },
   gatesRow: { flexDirection: 'row', gap: Spacing.md },
   gateBox: { flex: 1, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, gap: 2 },
+  natalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md, gap: Spacing.sm },
+  natalDivider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.sm },
+  natalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, gap: Spacing.sm },
+  natalPlanetSym: { fontSize: 17, width: 24, textAlign: 'center' },
+  natalPlanetLabel: { width: 76, gap: 1 },
+  natalSignInfo: { flex: 1, gap: 1 },
+  natalInterpret: { paddingLeft: 24 + Spacing.sm + 76 + Spacing.sm, paddingBottom: Spacing.sm, gap: 4 },
+  natalFunction: { textTransform: 'uppercase', letterSpacing: 0.5 },
   profileRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 4, gap: Spacing.md },
   profileValue: { fontWeight: '500', flex: 1, textAlign: 'right' },
   dangerCard: { borderColor: '#FF3B3040' },

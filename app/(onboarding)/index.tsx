@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { storage } from '../../lib/storage';
 import { calcLifePath } from '../../lib/numerology';
+import { geocodeLocation } from '../../lib/ephemeris';
 import { UserProfile } from '../../types';
 import { HD_TYPES, INNER_AUTHORITY_DESCRIPTIONS } from '../../lib/humanDesign';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
@@ -41,6 +42,8 @@ export default function Onboarding() {
   const [ampm, setAmpm] = useState<'AM' | 'PM'>('AM');
   const [birthTimeUnknown, setBirthTimeUnknown] = useState(false);
   const [location, setLocation] = useState('');
+  const [latLng, setLatLng] = useState<{ lat: number; lon: number } | null>(null);
+  const [geocoding, setGeocoding] = useState(false);
   const [hdType, setHdType] = useState<string | null>(null);
   const [hdAuthority, setHdAuthority] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -48,7 +51,18 @@ export default function Onboarding() {
   const stepIndex = STEPS.indexOf(step);
   const progress = (stepIndex / (STEPS.length - 1)) * 100;
 
-  const next = () => setStep(STEPS[stepIndex + 1]);
+  const next = async () => {
+    if (step === 'location' && location.trim().length >= 2) {
+      setGeocoding(true);
+      try {
+        const coords = await geocodeLocation(location.trim());
+        if (coords) setLatLng(coords);
+      } finally {
+        setGeocoding(false);
+      }
+    }
+    setStep(STEPS[stepIndex + 1]);
+  };
   const goBack = () => { if (stepIndex > 0) setStep(STEPS[stepIndex - 1]); };
 
   const finish = async () => {
@@ -62,8 +76,8 @@ export default function Onboarding() {
         birth_time: stored24h,
         birth_time_unknown: birthTimeUnknown,
         birth_location: location.trim(),
-        birth_lat: null,
-        birth_lng: null,
+        birth_lat: latLng?.lat ?? null,
+        birth_lng: latLng?.lon ?? null,
         life_path_number: calcLifePath(birthDate),
         human_design_type: hdType,
         human_design_authority: hdAuthority,
@@ -223,7 +237,13 @@ export default function Onboarding() {
         ) : (
           <View style={styles.footerRow}>
             <Button label="Skip" variant="ghost" onPress={next} size="md" />
-            <Button label="Continue" onPress={next} disabled={!canContinue()} size="md" />
+            <Button
+              label={geocoding ? 'Locating...' : 'Continue'}
+              onPress={next}
+              disabled={!canContinue() || geocoding}
+              loading={geocoding}
+              size="md"
+            />
           </View>
         )}
       </View>

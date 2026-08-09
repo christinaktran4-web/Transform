@@ -50,7 +50,7 @@ export function julianDayFromDate(year: number, month: number, day: number, hour
 }
 
 // Jean Meeus moon longitude (degrees, ecliptic)
-function getMoonLongitudeJD(jd: number): number {
+export function getMoonLongitudeJD(jd: number): number {
   const T = (jd - 2451545.0) / 36525;
   const L0 = (218.3164477 + 481267.88123421 * T) % 360;
   const M  = (134.9633964 + 477198.8675055  * T) % 360;
