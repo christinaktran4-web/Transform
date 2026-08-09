@@ -1,4 +1,5 @@
 import { getSunLongitudeJD, julianDayFromDate } from './astrology';
+import { getPlanetGateLongitudes } from './ephemeris';
 
 const HD_GATE_SEQUENCE = [
   41, 19, 13, 49, 30, 55, 37, 63, 22, 36, 25, 17, 21, 51, 42, 3,
@@ -155,6 +156,112 @@ export const INNER_AUTHORITY_DESCRIPTIONS: Record<string, { short: string; descr
     description: 'You have no inner authority — your guidance comes from the people and places around you. Notice where you feel clear and where you feel foggy.',
   },
 };
+
+const GATE_CENTER: Record<number, string> = {
+  64: 'Head', 61: 'Head', 63: 'Head',
+  47: 'Ajna', 24: 'Ajna', 4: 'Ajna', 17: 'Ajna', 43: 'Ajna', 11: 'Ajna',
+  62: 'Throat', 23: 'Throat', 56: 'Throat', 35: 'Throat', 12: 'Throat',
+  45: 'Throat', 33: 'Throat', 8: 'Throat', 31: 'Throat', 20: 'Throat', 16: 'Throat',
+  1: 'G', 13: 'G', 25: 'G', 46: 'G', 2: 'G', 15: 'G', 10: 'G', 7: 'G',
+  21: 'Will', 26: 'Will', 51: 'Will', 40: 'Will',
+  34: 'Sacral', 5: 'Sacral', 14: 'Sacral', 29: 'Sacral', 59: 'Sacral',
+  9: 'Sacral', 3: 'Sacral', 42: 'Sacral', 27: 'Sacral',
+  6: 'SolarPlexus', 37: 'SolarPlexus', 22: 'SolarPlexus', 36: 'SolarPlexus',
+  30: 'SolarPlexus', 55: 'SolarPlexus', 49: 'SolarPlexus',
+  58: 'Root', 38: 'Root', 54: 'Root', 53: 'Root', 60: 'Root',
+  52: 'Root', 19: 'Root', 39: 'Root', 41: 'Root',
+  48: 'Spleen', 57: 'Spleen', 44: 'Spleen', 50: 'Spleen',
+  32: 'Spleen', 28: 'Spleen', 18: 'Spleen',
+};
+
+const CHANNELS: [number, number][] = [
+  [1, 8], [2, 14], [3, 60], [4, 63], [5, 15], [6, 59], [7, 31], [9, 52],
+  [10, 20], [10, 57], [11, 56], [12, 22], [13, 33], [16, 48], [17, 62],
+  [18, 58], [19, 49], [20, 34], [21, 45], [25, 51], [26, 44], [27, 50],
+  [28, 38], [29, 46], [30, 41], [32, 54], [34, 57], [35, 36], [37, 40],
+  [39, 55], [42, 53], [43, 23], [47, 64], [61, 24],
+];
+
+function determineHDType(activatedGates: Set<number>): string {
+  const definedChannels = CHANNELS.filter(([a, b]) => activatedGates.has(a) && activatedGates.has(b));
+  const definedCenters = new Set<string>();
+  for (const [a, b] of definedChannels) {
+    definedCenters.add(GATE_CENTER[a]);
+    definedCenters.add(GATE_CENTER[b]);
+  }
+  if (definedCenters.size === 0) return 'Reflector';
+
+  const graph = new Map<string, Set<string>>();
+  for (const [a, b] of definedChannels) {
+    const ca = GATE_CENTER[a], cb = GATE_CENTER[b];
+    if (!graph.has(ca)) graph.set(ca, new Set());
+    if (!graph.has(cb)) graph.set(cb, new Set());
+    graph.get(ca)!.add(cb);
+    graph.get(cb)!.add(ca);
+  }
+  function component(start: string): Set<string> {
+    const visited = new Set<string>();
+    const q = [start];
+    while (q.length) {
+      const n = q.shift()!;
+      if (visited.has(n)) continue;
+      visited.add(n);
+      graph.get(n)?.forEach(x => q.push(x));
+    }
+    return visited;
+  }
+  if (definedCenters.has('Sacral')) {
+    return component('Sacral').has('Throat') ? 'Manifesting Generator' : 'Generator';
+  }
+  for (const motor of ['Will', 'SolarPlexus', 'Root']) {
+    if (definedCenters.has(motor) && component(motor).has('Throat')) return 'Manifestor';
+  }
+  return 'Projector';
+}
+
+export function getFullHumanDesign(birthDate: string, birthTime?: string | null): {
+  type: string;
+  profile: string;
+  profileName: string;
+  consciousSunGate: { gate: number; line: number };
+  unconsciousSunGate: { gate: number; line: number };
+  definedCenters: string[];
+} {
+  const [y, m, d] = birthDate.split('-').map(Number);
+  let hour = 12, minute = 0;
+  if (birthTime) {
+    const parts = birthTime.split(':').map(Number);
+    if (parts.length === 2) { hour = parts[0]; minute = parts[1]; }
+  }
+  const jdConscious = julianDayFromDate(y, m, d, hour, minute);
+  const jdUnconscious = jdConscious - 88.736;
+  const consciousLons = getPlanetGateLongitudes(jdConscious);
+  const unconsciousLons = getPlanetGateLongitudes(jdUnconscious);
+  const allGates = new Set<number>();
+  for (const { lon } of [...consciousLons, ...unconsciousLons]) {
+    allGates.add(longitudeToGate(lon).gate);
+  }
+  const type = determineHDType(allGates);
+  const csLon = consciousLons.find(p => p.name === 'Sun')!.lon;
+  const usLon = unconsciousLons.find(p => p.name === 'Sun')!.lon;
+  const consciousSunGate = longitudeToGate(csLon);
+  const unconsciousSunGate = longitudeToGate(usLon);
+  const profile = `${consciousSunGate.line}/${unconsciousSunGate.line}`;
+  const definedChannels = CHANNELS.filter(([a, b]) => allGates.has(a) && allGates.has(b));
+  const definedCentersSet = new Set<string>();
+  for (const [a, b] of definedChannels) {
+    definedCentersSet.add(GATE_CENTER[a]);
+    definedCentersSet.add(GATE_CENTER[b]);
+  }
+  return {
+    type,
+    profile,
+    profileName: PROFILE_NAMES[profile] ?? profile,
+    consciousSunGate,
+    unconsciousSunGate,
+    definedCenters: Array.from(definedCentersSet),
+  };
+}
 
 export const GATE_THEMES: Record<number, string> = {
   1: 'Self-Expression', 2: 'Receptivity', 3: 'Ordering', 4: 'Formulization',

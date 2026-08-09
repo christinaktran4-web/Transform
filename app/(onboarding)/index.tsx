@@ -12,7 +12,7 @@ import { storage } from '../../lib/storage';
 import { calcLifePath } from '../../lib/numerology';
 import { geocodeLocation } from '../../lib/ephemeris';
 import { UserProfile } from '../../types';
-import { HD_TYPES, INNER_AUTHORITY_DESCRIPTIONS } from '../../lib/humanDesign';
+import { HD_TYPES, INNER_AUTHORITY_DESCRIPTIONS, getFullHumanDesign } from '../../lib/humanDesign';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { Label } from '../../components/ui/Label';
 import { Button } from '../../components/ui/Button';
@@ -44,7 +44,6 @@ export default function Onboarding() {
   const [location, setLocation] = useState('');
   const [latLng, setLatLng] = useState<{ lat: number; lon: number } | null>(null);
   const [geocoding, setGeocoding] = useState(false);
-  const [hdType, setHdType] = useState<string | null>(null);
   const [hdAuthority, setHdAuthority] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -79,7 +78,7 @@ export default function Onboarding() {
         birth_lat: latLng?.lat ?? null,
         birth_lng: latLng?.lon ?? null,
         life_path_number: calcLifePath(birthDate),
-        human_design_type: hdType,
+        human_design_type: (() => { try { return getFullHumanDesign(birthDate, stored24h).type; } catch { return null; } })(),
         human_design_authority: hdAuthority,
         created_at: new Date().toISOString(),
       };
@@ -186,26 +185,28 @@ export default function Onboarding() {
           </FieldStep>
         )}
 
-        {step === 'humandesign' && (
-          <FieldStep title="What is your Human Design type?" description="Calculated from your birth data — this reveals your energy strategy and decision-making authority. Pick the one that resonates most.">
-            <View style={styles.enneagramList}>
-              {Object.entries(HD_TYPES).map(([typeName, t]) => {
-                const active = hdType === typeName;
-                return (
-                  <TouchableOpacity key={typeName} onPress={() => setHdType(active ? null : typeName)} activeOpacity={0.7}>
-                    <View style={[styles.enneagramRow, active && styles.enneagramRowActive]}>
-                      <Label style={styles.hdIcon}>{t.icon}</Label>
-                      <View style={{ flex: 1 }}>
-                        <Label variant="body">{typeName}</Label>
-                        <Label variant="caption" color={Colors.textSecondary} numberOfLines={1}>{t.strategy}</Label>
-                      </View>
-                      <Label variant="micro" color={Colors.textTertiary}>{t.population}</Label>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            {hdType && (
+        {step === 'humandesign' && (() => {
+          const hd24h = birthTimeUnknown ? null : (birthTime.trim() ? timeTo24h(birthTime.trim(), ampm) || null : null);
+          let hdCalc: ReturnType<typeof getFullHumanDesign> | null = null;
+          try { hdCalc = getFullHumanDesign(birthDate, hd24h); } catch {}
+          const hdInfo = hdCalc ? HD_TYPES[hdCalc.type] : null;
+          return (
+            <FieldStep title="Your Human Design" description="Calculated from your birth data — your energy strategy and decision-making authority.">
+              {hdCalc && hdInfo && (
+                <View style={styles.enneagramRow}>
+                  <Label style={styles.hdIcon}>{hdInfo.icon}</Label>
+                  <View style={{ flex: 1 }}>
+                    <Label variant="body" style={{ color: Colors.accent }}>{hdCalc.type}</Label>
+                    <Label variant="caption" color={Colors.textSecondary}>{hdInfo.strategy}</Label>
+                  </View>
+                  <Label variant="micro" color={Colors.textTertiary}>{hdInfo.population}</Label>
+                </View>
+              )}
+              {hdCalc && (
+                <Label variant="caption" color={Colors.textTertiary}>
+                  Profile {hdCalc.profile} · {hdCalc.profileName}
+                </Label>
+              )}
               <View style={styles.authoritySection}>
                 <Label variant="micro" color={Colors.textTertiary} style={{ marginBottom: Spacing.xs }}>Inner Authority</Label>
                 {Object.entries(INNER_AUTHORITY_DESCRIPTIONS).map(([auth, info]) => {
@@ -222,9 +223,9 @@ export default function Onboarding() {
                   );
                 })}
               </View>
-            )}
-          </FieldStep>
-        )}
+            </FieldStep>
+          );
+        })()}
 
         {step === 'complete' && <CompleteStep name={name} />}
       </ScrollView>

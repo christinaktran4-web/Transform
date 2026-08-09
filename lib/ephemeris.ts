@@ -120,6 +120,31 @@ export function getNatalChart(
   return { planets, ascendant, midheaven, hasTime, hasLocation };
 }
 
+export function getMeanNorthNodeLon(jd: number): number {
+  const T = (jd - 2451545.0) / 36525;
+  return norm(125.0445479 - 1934.1362608 * T + 0.0020754 * T**2 + 0.0000022 * T**3);
+}
+
+// Returns ecliptic longitudes for all 13 HD planets at a given JD
+export function getPlanetGateLongitudes(jd: number): { name: string; lon: number }[] {
+  const T = (jd - 2451545.0) / 36525;
+  const earthHelio = heliocentric('Earth', T);
+  const sunLon = getSunLongitudeJD(jd);
+  const northNode = getMeanNorthNodeLon(jd);
+  const result = [
+    { name: 'Sun', lon: sunLon },
+    { name: 'Earth', lon: norm(sunLon + 180) },
+    { name: 'Moon', lon: getMoonLongitudeJD(jd) },
+    { name: 'NorthNode', lon: northNode },
+    { name: 'SouthNode', lon: norm(northNode + 180) },
+  ];
+  for (const name of ['Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto']) {
+    const helio = heliocentric(name, T);
+    result.push({ name, lon: toGeocentric(helio, earthHelio) });
+  }
+  return result;
+}
+
 export async function geocodeLocation(location: string): Promise<{ lat: number; lon: number } | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;

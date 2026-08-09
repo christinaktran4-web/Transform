@@ -5,8 +5,8 @@ import { format } from 'date-fns';
 import { storage } from '../../lib/storage';
 import { UserProfile } from '../../types';
 import { calcPersonalYear, calcPersonalMonth, calcPersonalDay, calcDestiny, calcLifePath, LIFE_PATH_MEANINGS, PERSONAL_YEAR_MEANINGS, LIFE_PATH_DEEP } from '../../lib/numerology';
-import { getSunSign, getMoonSignApprox, getBirthMoonPhase, ZODIAC_DETAILS, getCuspInfo, ELEMENT_AURA } from '../../lib/astrology';
-import { getHumanDesignGates, HD_TYPES, PROFILE_DESCRIPTIONS, INNER_AUTHORITY_DESCRIPTIONS, GATE_THEMES } from '../../lib/humanDesign';
+import { getSunSign, getBirthMoonPhase, ZODIAC_DETAILS, getCuspInfo, ELEMENT_AURA } from '../../lib/astrology';
+import { getFullHumanDesign, HD_TYPES, PROFILE_DESCRIPTIONS, INNER_AUTHORITY_DESCRIPTIONS, GATE_THEMES } from '../../lib/humanDesign';
 import { getNatalChart, geocodeLocation, PLANET_SYMBOLS, PLANET_FUNCTIONS, PLANET_IN_SIGN, OUTER_PLANET_IN_SIGN, PlanetPlacement } from '../../lib/ephemeris';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { Label } from '../../components/ui/Label';
@@ -100,15 +100,15 @@ export default function ProfileScreen() {
   const sunSign = getSunSign(profile.birth_date, profile.sun_sign_override);
   const sunDetail = ZODIAC_DETAILS[sunSign];
   const sunAura = ELEMENT_AURA[sunDetail?.element ?? ''];
-  const moonSign = getMoonSignApprox(new Date(profile.birth_date + 'T12:00:00Z'));
+  const natalChart = getNatalChart(profile.birth_date, profile.birth_time, profile.birth_lat, profile.birth_lng);
+  const moonSign = natalChart.planets.Moon.sign;
   const moonDetail = ZODIAC_DETAILS[moonSign];
   const moonAura = ELEMENT_AURA[moonDetail?.element ?? ''];
   const birthMoon = getBirthMoonPhase(profile.birth_date);
   const pyMeaning = PERSONAL_YEAR_MEANINGS[personalNums.year];
-  const hdType = profile.human_design_type ? HD_TYPES[profile.human_design_type] : null;
-  const hdGates = getHumanDesignGates(profile.birth_date, profile.birth_time);
+  const hdFull = getFullHumanDesign(profile.birth_date, profile.birth_time);
+  const hdType = HD_TYPES[hdFull.type];
   const lifePathDeep = LIFE_PATH_DEEP[profile.life_path_number];
-  const natalChart = getNatalChart(profile.birth_date, profile.birth_time, profile.birth_lat, profile.birth_lng);
   const birthDateDisplay = format(parseBirthDate(profile.birth_date), 'MMMM d, yyyy');
   const cuspInfo = getCuspInfo(profile.birth_date);
   const showCuspPicker = !!cuspInfo && !profile.sun_sign_override;
@@ -147,6 +147,39 @@ export default function ProfileScreen() {
           </Card>
         ))}
       </View>
+
+      {/* Synthesis Overview */}
+      <Card style={styles.synthesisCard}>
+        <Label variant="micro" color={Colors.textTertiary} style={{ marginBottom: Spacing.sm }}>Overview</Label>
+        <View style={styles.synthesisGlyphs}>
+          <View style={styles.glyphPill}>
+            <Label style={[styles.glyphSymbol, sunAura && { color: sunAura.color }]}>☉</Label>
+            <Label variant="caption" style={sunAura ? { color: sunAura.color } : { color: Colors.text }}>{sunSign}</Label>
+          </View>
+          <View style={styles.glyphPill}>
+            <Label style={[styles.glyphSymbol, moonAura && { color: moonAura.color }]}>☽</Label>
+            <Label variant="caption" style={moonAura ? { color: moonAura.color } : { color: Colors.text }}>{moonSign}</Label>
+          </View>
+          {natalChart.ascendant && (
+            <View style={styles.glyphPill}>
+              <Label style={styles.glyphSymbol}>↑</Label>
+              <Label variant="caption" color={Colors.textSecondary}>{natalChart.ascendant.sign}</Label>
+            </View>
+          )}
+          <View style={styles.glyphPill}>
+            <Label style={styles.glyphSymbol}>◆</Label>
+            <Label variant="caption" color={Colors.textSecondary}>LP {profile.life_path_number}</Label>
+          </View>
+          <View style={styles.glyphPill}>
+            <Label style={[styles.glyphSymbol, { color: Colors.accent }]}>{hdType.icon}</Label>
+            <Label variant="caption" color={Colors.textSecondary}>{hdFull.type.replace('Manifesting Generator', 'MG')}</Label>
+          </View>
+        </View>
+        <Divider />
+        <Label variant="caption" color={Colors.textSecondary} style={{ lineHeight: 22, marginTop: Spacing.sm }}>
+          {buildSynthesis({ sunSign, moonSign, risingSign: natalChart.ascendant?.sign ?? null, lifePathNumber: profile.life_path_number, hdType: hdFull.type, personalYear: personalNums.year })}
+        </Label>
+      </Card>
 
       {showCuspPicker && (
         <CuspPickerCard cuspInfo={cuspInfo} onPick={saveSignOverride} />
@@ -206,30 +239,24 @@ export default function ProfileScreen() {
           )}
         </ReadingSection>
 
-        {(hdType || profile.human_design_type) && (
-          <>
-            <Divider />
-            <ReadingSection label={`Human Design · ${profile.human_design_type ?? ''}`} icon="◈">
-              {hdType && (
-                <>
-                  <Label variant="body" style={{ color: Colors.accent }}>{hdType.icon} {profile.human_design_type}</Label>
-                  <Label variant="caption" color={Colors.textSecondary} style={styles.readingBody}>{hdType.description}</Label>
-                  <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4 }}>
-                    Strategy: {hdType.strategy}
-                  </Label>
-                  <RevealCard label="Your Human Design secret ✦">
-                    <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>{hdType.deepDive}</Label>
-                    <Label variant="micro" style={{ color: Colors.accent, marginTop: Spacing.xs }}>Signature: {hdType.signature}</Label>
-                    <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: 2 }}>Not-self: {hdType.notSelf}</Label>
-                  </RevealCard>
-                </>
-              )}
-              <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm }}>
-                Profile {hdGates.profile} · {hdGates.profileName}
-              </Label>
-            </ReadingSection>
-          </>
-        )}
+        <>
+          <Divider />
+          <ReadingSection label={`Human Design · ${hdFull.type}`} icon="◈">
+            <Label variant="body" style={{ color: Colors.accent }}>{hdType.icon} {hdFull.type}</Label>
+            <Label variant="caption" color={Colors.textSecondary} style={styles.readingBody}>{hdType.description}</Label>
+            <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4 }}>
+              Strategy: {hdType.strategy}
+            </Label>
+            <RevealCard label="Your Human Design secret ✦">
+              <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>{hdType.deepDive}</Label>
+              <Label variant="micro" style={{ color: Colors.accent, marginTop: Spacing.xs }}>Signature: {hdType.signature}</Label>
+              <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: 2 }}>Not-self: {hdType.notSelf}</Label>
+            </RevealCard>
+            <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm }}>
+              Profile {hdFull.profile} · {hdFull.profileName}
+            </Label>
+          </ReadingSection>
+        </>
 
         <Divider />
         <ReadingSection label={`Personal Year ${personalNums.year}`} icon="◎">
@@ -307,100 +334,62 @@ export default function ProfileScreen() {
       {/* Human Design */}
       <Card>
         <Label variant="heading" style={{ marginBottom: Spacing.sm }}>Human Design</Label>
-        {hdType ? (
+        <View style={styles.hdTypeRow}>
+          <Label style={styles.hdTypeIcon}>{hdType.icon}</Label>
+          <View style={{ flex: 1 }}>
+            <Label variant="body" style={{ color: Colors.accent }}>{hdFull.type}</Label>
+            <Label variant="caption" color={Colors.textTertiary}>{hdType.aura}</Label>
+          </View>
+          <Label variant="micro" color={Colors.textTertiary}>{hdType.population}</Label>
+        </View>
+        <Label variant="caption" color={Colors.textSecondary} style={{ marginBottom: Spacing.md, lineHeight: 20 }}>
+          {hdType.description}
+        </Label>
+        <ProfileRow label="Strategy" value={hdType.strategy} />
+        <Divider />
+        <ProfileRow label="Signature" value={hdType.signature} />
+        <Divider />
+        <ProfileRow label="Not-Self Theme" value={hdType.notSelf} />
+        {profile.human_design_authority && (
           <>
-            <View style={styles.hdTypeRow}>
-              <Label style={styles.hdTypeIcon}>{hdType.icon}</Label>
-              <View style={{ flex: 1 }}>
-                <Label variant="body" style={{ color: Colors.accent }}>{profile.human_design_type}</Label>
-                <Label variant="caption" color={Colors.textTertiary}>{hdType.aura}</Label>
-              </View>
-              <Label variant="micro" color={Colors.textTertiary}>{hdType.population}</Label>
-            </View>
-            <Label variant="caption" color={Colors.textSecondary} style={{ marginBottom: Spacing.md, lineHeight: 20 }}>
-              {hdType.description}
-            </Label>
-            <ProfileRow label="Strategy" value={hdType.strategy} />
             <Divider />
-            <ProfileRow label="Signature" value={hdType.signature} />
-            <Divider />
-            <ProfileRow label="Not-Self Theme" value={hdType.notSelf} />
-            {profile.human_design_authority && (
-              <>
-                <Divider />
-                <ProfileRow label="Inner Authority" value={profile.human_design_authority} />
-                {INNER_AUTHORITY_DESCRIPTIONS[profile.human_design_authority] && (
-                  <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4, lineHeight: 18 }}>
-                    {INNER_AUTHORITY_DESCRIPTIONS[profile.human_design_authority].description}
-                  </Label>
-                )}
-              </>
-            )}
-            <Divider />
-            <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm, marginBottom: 4 }}>Profile</Label>
-            <Label variant="body">{hdGates.profile} · {hdGates.profileName}</Label>
-            {PROFILE_DESCRIPTIONS[hdGates.profile] && (
-              <RevealCard label="Your Profile secret ✦">
-                <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>
-                  {PROFILE_DESCRIPTIONS[hdGates.profile]}
-                </Label>
-              </RevealCard>
-            )}
-            <Divider />
-            <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm, marginBottom: Spacing.sm }}>Conscious & Unconscious Sun Gates</Label>
-            <View style={styles.gatesRow}>
-              <View style={styles.gateBox}>
-                <Label variant="micro" color={Colors.textTertiary}>Conscious ☉</Label>
-                <Label variant="heading" style={{ color: Colors.accent }}>Gate {hdGates.conscious.gate}</Label>
-                <Label variant="micro" color={Colors.textSecondary}>Line {hdGates.conscious.line}</Label>
-                <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4 }}>{GATE_THEMES[hdGates.conscious.gate]}</Label>
-              </View>
-              <View style={styles.gateBox}>
-                <Label variant="micro" color={Colors.textTertiary}>Unconscious ☉</Label>
-                <Label variant="heading">{hdGates.unconscious.gate}</Label>
-                <Label variant="micro" color={Colors.textSecondary}>Line {hdGates.unconscious.line}</Label>
-                <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4 }}>{GATE_THEMES[hdGates.unconscious.gate]}</Label>
-              </View>
-            </View>
-            <RevealCard label="Your Human Design deep dive ✦">
-              <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>{hdType.deepDive}</Label>
-            </RevealCard>
-          </>
-        ) : (
-          <>
-            <View style={styles.hdTypeRow}>
-              <View style={{ flex: 1 }}>
-                <Label variant="micro" color={Colors.textTertiary} style={{ marginBottom: Spacing.xs }}>Profile</Label>
-                <Label variant="body">{hdGates.profile} · {hdGates.profileName}</Label>
-              </View>
-            </View>
-            {PROFILE_DESCRIPTIONS[hdGates.profile] && (
-              <Label variant="caption" color={Colors.textSecondary} style={{ lineHeight: 20, marginTop: Spacing.sm, marginBottom: Spacing.md }}>
-                {PROFILE_DESCRIPTIONS[hdGates.profile]}
+            <ProfileRow label="Inner Authority" value={profile.human_design_authority} />
+            {INNER_AUTHORITY_DESCRIPTIONS[profile.human_design_authority] && (
+              <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4, lineHeight: 18 }}>
+                {INNER_AUTHORITY_DESCRIPTIONS[profile.human_design_authority].description}
               </Label>
             )}
-            <Divider />
-            <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm, marginBottom: Spacing.sm }}>Sun Gates</Label>
-            <View style={styles.gatesRow}>
-              <View style={styles.gateBox}>
-                <Label variant="micro" color={Colors.textTertiary}>Conscious ☉</Label>
-                <Label variant="heading" style={{ color: Colors.accent }}>Gate {hdGates.conscious.gate}</Label>
-                <Label variant="micro" color={Colors.textSecondary}>Line {hdGates.conscious.line}</Label>
-                <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4 }}>{GATE_THEMES[hdGates.conscious.gate]}</Label>
-              </View>
-              <View style={styles.gateBox}>
-                <Label variant="micro" color={Colors.textTertiary}>Unconscious ☉</Label>
-                <Label variant="heading">{hdGates.unconscious.gate}</Label>
-                <Label variant="micro" color={Colors.textSecondary}>Line {hdGates.unconscious.line}</Label>
-                <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4 }}>{GATE_THEMES[hdGates.unconscious.gate]}</Label>
-              </View>
-            </View>
-            <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: Spacing.md, lineHeight: 18 }}>
-              Your Type and Authority help complete the picture — add them in Edit Profile.
-            </Label>
-            <Button label="Set HD Type" onPress={() => setEditVisible(true)} size="md" variant="secondary" style={{ marginTop: Spacing.md }} />
           </>
         )}
+        <Divider />
+        <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm, marginBottom: 4 }}>Profile</Label>
+        <Label variant="body">{hdFull.profile} · {hdFull.profileName}</Label>
+        {PROFILE_DESCRIPTIONS[hdFull.profile] && (
+          <RevealCard label="Your Profile secret ✦">
+            <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>
+              {PROFILE_DESCRIPTIONS[hdFull.profile]}
+            </Label>
+          </RevealCard>
+        )}
+        <Divider />
+        <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm, marginBottom: Spacing.sm }}>Conscious & Unconscious Sun Gates</Label>
+        <View style={styles.gatesRow}>
+          <View style={styles.gateBox}>
+            <Label variant="micro" color={Colors.textTertiary}>Conscious ☉</Label>
+            <Label variant="heading" style={{ color: Colors.accent }}>Gate {hdFull.consciousSunGate.gate}</Label>
+            <Label variant="micro" color={Colors.textSecondary}>Line {hdFull.consciousSunGate.line}</Label>
+            <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4 }}>{GATE_THEMES[hdFull.consciousSunGate.gate]}</Label>
+          </View>
+          <View style={styles.gateBox}>
+            <Label variant="micro" color={Colors.textTertiary}>Unconscious ☉</Label>
+            <Label variant="heading">{hdFull.unconsciousSunGate.gate}</Label>
+            <Label variant="micro" color={Colors.textSecondary}>Line {hdFull.unconsciousSunGate.line}</Label>
+            <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4 }}>{GATE_THEMES[hdFull.unconsciousSunGate.gate]}</Label>
+          </View>
+        </View>
+        <RevealCard label="Your Human Design deep dive ✦">
+          <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>{hdType.deepDive}</Label>
+        </RevealCard>
       </Card>
 
       {/* Numerology */}
@@ -455,6 +444,39 @@ export default function ProfileScreen() {
       />
     </ScrollView>
   );
+}
+
+function buildSynthesis({ sunSign, moonSign, risingSign, lifePathNumber, hdType, personalYear }: {
+  sunSign: string; moonSign: string; risingSign: string | null;
+  lifePathNumber: number; hdType: string; personalYear: number;
+}): string {
+  const sunEl = ZODIAC_DETAILS[sunSign]?.element ?? '';
+  const moonEl = ZODIAC_DETAILS[moonSign]?.element ?? '';
+  const elemWords: Record<string, string> = {
+    Fire: 'passionate', Air: 'intellectual', Earth: 'grounded', Water: 'intuitive',
+  };
+  const parts: string[] = [];
+  if (sunEl && moonEl) {
+    if (sunEl === moonEl) {
+      parts.push(`A double-${sunEl.toLowerCase()} nature — ${elemWords[sunEl] ?? sunEl.toLowerCase()} at the core.`);
+    } else {
+      parts.push(`${sunEl} Sun, ${moonEl} Moon — ${elemWords[sunEl] ?? sunEl.toLowerCase()} expression shaped by ${elemWords[moonEl] ?? moonEl.toLowerCase()} instincts.`);
+    }
+  }
+  if (risingSign) {
+    const rEl = ZODIAC_DETAILS[risingSign]?.element;
+    parts.push(`${risingSign} Rising brings ${rEl ? rEl.toLowerCase() + ' ' : ''}energy to how the world first sees you.`);
+  }
+  const lpMeaning = LIFE_PATH_MEANINGS[lifePathNumber];
+  if (lpMeaning) {
+    const lpShort = lpMeaning.split('—')[0].trim().toLowerCase();
+    parts.push(`Life Path ${lifePathNumber} channels this toward ${lpShort}.`);
+  }
+  const hdInfo = HD_TYPES[hdType];
+  if (hdInfo) parts.push(`As a ${hdType}, your strategy is to ${hdInfo.strategy.toLowerCase()}.`);
+  const pyMeaning = PERSONAL_YEAR_MEANINGS[personalYear];
+  if (pyMeaning) parts.push(`In a Personal Year ${personalYear} — ${pyMeaning.title.toLowerCase()} — the patterns are ready to emerge.`);
+  return parts.join(' ');
 }
 
 function RevealCard({ label = 'Reveal more ✦', children }: { label?: string; children: React.ReactNode }) {
@@ -540,7 +562,6 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
   const [ampm, setAmpm] = useState<'AM' | 'PM'>(parsed?.ampm ?? 'AM');
   const [birthTimeUnknown, setBirthTimeUnknown] = useState(profile.birth_time_unknown ?? false);
   const [location, setLocation] = useState(profile.birth_location);
-  const [hdType, setHdType] = useState<string | null>(profile.human_design_type ?? null);
   const [hdAuthority, setHdAuthority] = useState<string | null>(profile.human_design_authority ?? null);
   const [sunSignOverride, setSunSignOverride] = useState<string | null>(profile.sun_sign_override ?? null);
 
@@ -553,7 +574,6 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
       setAmpm(p2?.ampm ?? 'AM');
       setBirthTimeUnknown(profile.birth_time_unknown ?? false);
       setLocation(profile.birth_location);
-      setHdType(profile.human_design_type ?? null);
       setHdAuthority(profile.human_design_authority ?? null);
       setSunSignOverride(profile.sun_sign_override ?? null);
     }
@@ -580,7 +600,7 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
       birth_lat: lat,
       birth_lng: lng,
       life_path_number: calcLifePath(birthDate.trim()),
-      human_design_type: hdType,
+      human_design_type: (() => { try { return getFullHumanDesign(birthDate.trim(), stored24h).type; } catch { return profile.human_design_type; } })(),
       human_design_authority: hdAuthority,
       sun_sign_override: currentCuspInfo ? sunSignOverride : null,
     };
@@ -647,25 +667,7 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
           </View>
         )}
 
-        <Label variant="micro" color={Colors.textTertiary} style={{ marginBottom: Spacing.sm }}>Human Design Type</Label>
-        <View style={styles.enneagramList}>
-          {Object.entries(HD_TYPES).map(([typeName, t]) => {
-            const active = hdType === typeName;
-            return (
-              <TouchableOpacity key={typeName} onPress={() => setHdType(active ? null : typeName)} activeOpacity={0.7}>
-                <View style={[styles.enneagramRow, active && styles.enneagramRowActive]}>
-                  <Label style={{ fontSize: 18, width: 28, textAlign: 'center' }}>{t.icon}</Label>
-                  <View style={{ flex: 1 }}>
-                    <Label variant="body">{typeName}</Label>
-                    <Label variant="caption" color={Colors.textSecondary} numberOfLines={1}>{t.strategy}</Label>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.md, marginBottom: Spacing.sm }}>Inner Authority</Label>
+        <Label variant="micro" color={Colors.textTertiary} style={{ marginBottom: Spacing.sm }}>Inner Authority</Label>
         <View style={styles.enneagramList}>
           {Object.entries(INNER_AUTHORITY_DESCRIPTIONS).map(([auth, info]) => {
             const active = hdAuthority === auth;
@@ -796,6 +798,10 @@ const styles = StyleSheet.create({
   natalFunction: { textTransform: 'uppercase', letterSpacing: 0.5 },
   profileRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 4, gap: Spacing.md },
   profileValue: { fontWeight: '500', flex: 1, textAlign: 'right' },
+  synthesisCard: { borderColor: Colors.borderGlow },
+  synthesisGlyphs: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.sm },
+  glyphPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: Radius.full, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
+  glyphSymbol: { fontSize: 13, color: Colors.textSecondary },
   dangerCard: { borderColor: '#FF3B3040' },
   cuspCard: { borderColor: Colors.borderGlow, borderWidth: 1 },
   cuspOptions: { flexDirection: 'row', gap: Spacing.md },
