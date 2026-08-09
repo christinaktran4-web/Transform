@@ -64,19 +64,19 @@ export function getMoonPhase(date: Date = new Date()): MoonData {
 export function getCurrentZodiacSeason(date: Date = new Date()): string {
   const month = date.getMonth() + 1;
   const day = date.getDate();
+  // Ordered Jan→Dec: iterate forward, keep the last sign whose start we've passed.
+  // Capricorn is the default (covers Dec 22–31 and Jan 1–19 before Aquarius starts).
   const seasons: [number, number, string][] = [
-    [3, 21, 'Aries'], [4, 20, 'Taurus'], [5, 21, 'Gemini'],
-    [6, 21, 'Cancer'], [7, 23, 'Leo'], [8, 23, 'Virgo'],
-    [9, 23, 'Libra'], [10, 23, 'Scorpio'], [11, 22, 'Sagittarius'],
-    [12, 22, 'Capricorn'], [1, 20, 'Aquarius'], [2, 19, 'Pisces'],
+    [1, 20, 'Aquarius'], [2, 19, 'Pisces'], [3, 21, 'Aries'],
+    [4, 20, 'Taurus'], [5, 21, 'Gemini'], [6, 21, 'Cancer'],
+    [7, 23, 'Leo'], [8, 23, 'Virgo'], [9, 23, 'Libra'],
+    [10, 23, 'Scorpio'], [11, 22, 'Sagittarius'], [12, 22, 'Capricorn'],
   ];
-  for (let i = seasons.length - 1; i >= 0; i--) {
-    const [sm, sd] = seasons[i];
-    if (month > sm || (month === sm && day >= sd)) {
-      return seasons[i][2];
-    }
+  let current = 'Capricorn';
+  for (const [sm, sd, sign] of seasons) {
+    if (month > sm || (month === sm && day >= sd)) current = sign;
   }
-  return 'Capricorn';
+  return current;
 }
 
 export function getSunSign(birthDate: string): string {

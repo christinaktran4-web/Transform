@@ -13,7 +13,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { storage } from '../../lib/storage';
 import { getMoonPhase, getCurrentZodiacSeason, MOON_PHASE_MEANINGS, ZODIAC_DETAILS } from '../../lib/astrology';
-import { calcPersonalYear, calcPersonalMonth, calcPersonalDay } from '../../lib/numerology';
+import { calcPersonalYear, calcPersonalMonth, calcPersonalDay, PERSONAL_YEAR_MEANINGS } from '../../lib/numerology';
 import { UserProfile, DailyCheckin } from '../../types';
 import { Colors, Spacing, Radius } from '../../constants/theme';
 import { Label } from '../../components/ui/Label';
@@ -141,6 +141,17 @@ export default function TodayScreen() {
                 <Label variant="micro" color={Colors.textTertiary}>Personal Year</Label>
               </View>
             </View>
+            {PERSONAL_YEAR_MEANINGS[personalNums.year] && (
+              <>
+                <View style={styles.numDividerH} />
+                <Label variant="micro" style={{ color: Colors.accent, marginBottom: 4 }}>
+                  Personal Year {personalNums.year}: {PERSONAL_YEAR_MEANINGS[personalNums.year].title}
+                </Label>
+                <Label variant="caption" color={Colors.textSecondary}>
+                  {PERSONAL_YEAR_MEANINGS[personalNums.year].theme}
+                </Label>
+              </>
+            )}
           </Card>
         )}
 
@@ -319,6 +330,7 @@ const styles = StyleSheet.create({
   numsRow: { flexDirection: 'row', alignItems: 'center' },
   numItem: { flex: 1, alignItems: 'center', gap: 4 },
   numDivider: { width: 1, height: 32, backgroundColor: Colors.border },
+  numDividerH: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.sm },
   oracleBanner: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,

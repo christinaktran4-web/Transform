@@ -47,6 +47,20 @@ export function calcDestiny(name: string): number {
   return reduceToSingleDigit(sum);
 }
 
+export const PERSONAL_YEAR_MEANINGS: Record<number, { title: string; theme: string; description: string }> = {
+  1: { title: 'New Beginnings', theme: 'Independence & Initiation', description: 'A fresh nine-year cycle begins. This year favors bold new starts, self-reliance, and stepping into leadership. Plant seeds now — what you begin here you will tend for years to come.' },
+  2: { title: 'Patience & Partnership', theme: 'Cooperation & Sensitivity', description: 'A year of quiet growth and deepening relationships. Focus on collaboration, diplomacy, and trust. What you started last year needs time and gentle attention.' },
+  3: { title: 'Expression & Joy', theme: 'Creativity & Communication', description: 'Life opens up. Express yourself freely through art, conversation, and social connection. This is a year to enjoy, celebrate, and let your voice be heard.' },
+  4: { title: 'Work & Structure', theme: 'Foundation & Discipline', description: 'A year to build — systems, habits, and plans that serve the long term. Hard work now creates lasting results. Focus, organize, and commit to what truly matters.' },
+  5: { title: 'Change & Freedom', theme: 'Adventure & Adaptability', description: 'Expect the unexpected. Opportunities arrive suddenly, and flexibility is your greatest asset. Embrace change, new experiences, and anything that expands your world.' },
+  6: { title: 'Responsibility & Love', theme: 'Home, Family & Service', description: 'A year of nurturing — yourself, your relationships, and your community. Harmony and beauty are highlighted. Commitments deepen and domestic life takes center stage.' },
+  7: { title: 'Reflection & Inner Work', theme: 'Spirituality & Analysis', description: 'A quiet, introspective year. Solitude is productive. Study, meditate, and go inward. The answers you seek come from within, not from the outer world.' },
+  8: { title: 'Power & Achievement', theme: 'Ambition & Material Mastery', description: 'A year of harvest and recognition. Apply yourself fully to professional and financial goals. Authority and influence are available — step forward with confidence.' },
+  9: { title: 'Completion & Release', theme: 'Endings & Universal Love', description: 'The cycle closes. Let go of what no longer serves — old patterns, relationships, and ways of being. Forgiveness is your guide into the new cycle ahead.' },
+  11: { title: 'Spiritual Illumination', theme: 'Master Intuition & Awakening', description: 'A heightened year of spiritual awareness and intuitive clarity. You may inspire many simply by showing up authentically. Trust what you feel, not only what you can prove.' },
+  22: { title: 'Manifesting Grand Vision', theme: 'Master Building', description: 'A rare year of immense potential. You have the capacity to build something that truly matters — tangible, lasting, and meaningful to the world.' },
+};
+
 export const LIFE_PATH_MEANINGS: Record<number, string> = {
   1: 'The Leader — independent, pioneering, self-determined.',
   2: 'The Diplomat — cooperative, sensitive, peacemaker.',
