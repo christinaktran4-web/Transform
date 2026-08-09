@@ -175,7 +175,7 @@ function MessageBubble({ message }: { message: OracleMessage }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   header: { padding: Spacing.xl, paddingTop: 60, gap: 4, borderBottomWidth: 1, borderBottomColor: Colors.border },
   starters: { padding: Spacing.xl, gap: Spacing.sm },
   starterBtn: { padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },

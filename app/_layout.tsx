@@ -1,13 +1,23 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { Platform } from 'react-native';
+import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
+import { StarCanvas } from '../components/ui/StarCanvas';
 
-export default function RootLayout() {
+function AppShell() {
+  const { isDark } = useTheme();
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#000' } }}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <StarCanvas />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: 'transparent' },
+          animation: Platform.OS === 'web' ? 'none' : 'default',
+        }}
+      >
         <Stack.Screen name="index" />
         <Stack.Screen name="(onboarding)" />
         <Stack.Screen name="(tabs)" />
@@ -17,6 +27,10 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000' },
-});
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <AppShell />
+    </ThemeProvider>
+  );
+}

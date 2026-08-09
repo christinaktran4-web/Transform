@@ -3,6 +3,7 @@ export interface UserProfile {
   name: string;
   birth_date: string;
   birth_time: string | null;
+  birth_time_unknown?: boolean;
   birth_location: string;
   birth_lat: number | null;
   birth_lng: number | null;

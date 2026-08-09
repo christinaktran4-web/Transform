@@ -5,13 +5,13 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { format } from 'date-fns';
 import { storage } from '../../lib/storage';
 import { calcLifePath } from '../../lib/numerology';
 import { UserProfile } from '../../types';
-import { Colors, Spacing } from '../../constants/theme';
+import { Colors, Spacing, Radius } from '../../constants/theme';
 import { Label } from '../../components/ui/Label';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -26,6 +26,7 @@ export default function Onboarding() {
   const [name, setName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [birthTime, setBirthTime] = useState('');
+  const [birthTimeUnknown, setBirthTimeUnknown] = useState(false);
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +34,7 @@ export default function Onboarding() {
   const progress = (stepIndex / (STEPS.length - 1)) * 100;
 
   const next = () => setStep(STEPS[stepIndex + 1]);
+  const goBack = () => { if (stepIndex > 0) setStep(STEPS[stepIndex - 1]); };
 
   const finish = async () => {
     setLoading(true);
@@ -41,7 +43,8 @@ export default function Onboarding() {
         id: Date.now().toString(),
         name: name.trim(),
         birth_date: birthDate,
-        birth_time: birthTime || null,
+        birth_time: birthTimeUnknown ? null : (birthTime || null),
+        birth_time_unknown: birthTimeUnknown,
         birth_location: location.trim(),
         birth_lat: null,
         birth_lng: null,
@@ -59,6 +62,7 @@ export default function Onboarding() {
   const canContinue = () => {
     if (step === 'name') return name.trim().length >= 2;
     if (step === 'birthdate') return /^\d{4}-\d{2}-\d{2}$/.test(birthDate);
+    if (step === 'birthtime') return birthTimeUnknown || birthTime.trim().length > 0;
     if (step === 'location') return location.trim().length >= 2;
     return true;
   };
@@ -68,8 +72,14 @@ export default function Onboarding() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {stepIndex > 0 && step !== 'complete' && (
+        <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.7}>
+          <Label style={styles.backArrow}>←</Label>
+        </TouchableOpacity>
+      )}
+
       <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${progress}%` }]} />
+        <View style={[styles.progressFill, { width: `${progress}%` as `${number}%` }]} />
       </View>
 
       <ScrollView
@@ -78,10 +88,7 @@ export default function Onboarding() {
       >
         {step === 'welcome' && <WelcomeStep />}
         {step === 'name' && (
-          <FieldStep
-            title="What is your name?"
-            description="This is how the Oracle will know you."
-          >
+          <FieldStep title="What is your name?" description="This is how the Oracle will know you.">
             <Input
               label="Full name"
               value={name}
@@ -93,10 +100,7 @@ export default function Onboarding() {
           </FieldStep>
         )}
         {step === 'birthdate' && (
-          <FieldStep
-            title="When were you born?"
-            description="Your birth date anchors your numerology and astrological profile."
-          >
+          <FieldStep title="When were you born?" description="Your birth date anchors your numerology and astrological profile.">
             <Input
               label="Birth date (YYYY-MM-DD)"
               value={birthDate}
@@ -109,26 +113,36 @@ export default function Onboarding() {
           </FieldStep>
         )}
         {step === 'birthtime' && (
-          <FieldStep
-            title="What time were you born?"
-            description="Optional — used for your rising sign and house placements."
-          >
+          <FieldStep title="What time were you born?" description="Used for your rising sign and house placements.">
             <Input
               label="Birth time (HH:MM, 24h)"
               value={birthTime}
-              onChangeText={setBirthTime}
-              placeholder="14:30 (optional)"
+              onChangeText={t => { setBirthTime(t); if (birthTimeUnknown) setBirthTimeUnknown(false); }}
+              placeholder="14:30"
               keyboardType="numbers-and-punctuation"
               autoFocus
               maxLength={5}
+              editable={!birthTimeUnknown}
             />
+            <TouchableOpacity
+              style={styles.unknownRow}
+              onPress={() => { setBirthTimeUnknown(v => !v); setBirthTime(''); }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, birthTimeUnknown && styles.checkboxOn]}>
+                {birthTimeUnknown && <Label style={styles.checkmark}>✓</Label>}
+              </View>
+              <Label variant="caption" color={Colors.textSecondary}>I don't know my birth time</Label>
+            </TouchableOpacity>
+            {birthTimeUnknown && (
+              <Label variant="caption" color={Colors.textTertiary} style={styles.unknownNote}>
+                Note: astrological readings for rising sign and house placements will be approximate.
+              </Label>
+            )}
           </FieldStep>
         )}
         {step === 'location' && (
-          <FieldStep
-            title="Where were you born?"
-            description="City and country help refine your chart."
-          >
+          <FieldStep title="Where were you born?" description="City and country help refine your chart.">
             <Input
               label="Birth location"
               value={location}
@@ -172,15 +186,7 @@ function WelcomeStep() {
   );
 }
 
-function FieldStep({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
+function FieldStep({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
     <View style={styles.fieldContent}>
       <Label variant="title" style={styles.fieldTitle}>{title}</Label>
@@ -203,9 +209,11 @@ function CompleteStep({ name }: { name: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  backBtn: { position: 'absolute', top: 60, left: Spacing.xl, zIndex: 10, padding: Spacing.sm },
+  backArrow: { fontSize: 22, color: Colors.textSecondary },
   progressTrack: { height: 2, backgroundColor: Colors.border, marginTop: 60 },
-  progressFill: { height: 2, backgroundColor: Colors.text },
+  progressFill: { height: 2, backgroundColor: Colors.accent },
   content: { flexGrow: 1, padding: Spacing.xl, justifyContent: 'center' },
   centerContent: { flex: 1, justifyContent: 'center' },
   fieldContent: { flex: 1, justifyContent: 'center', gap: Spacing.md },
@@ -217,4 +225,9 @@ const styles = StyleSheet.create({
   footer: { padding: Spacing.xl, paddingBottom: Spacing.xxl },
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   fullWidth: { width: '100%' },
+  unknownRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.md },
+  checkbox: { width: 20, height: 20, borderRadius: Radius.sm - 4, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  checkboxOn: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  checkmark: { fontSize: 12, color: Colors.background },
+  unknownNote: { marginTop: Spacing.sm, lineHeight: 18 },
 });

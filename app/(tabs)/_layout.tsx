@@ -9,7 +9,7 @@ function TabIcon({ name, focused }: { name: IconName; focused: boolean }) {
     <Ionicons
       name={name}
       size={22}
-      color={focused ? Colors.text : Colors.textTertiary}
+      color={focused ? Colors.accent : Colors.textTertiary}
     />
   );
 }
@@ -20,14 +20,14 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: Colors.surface,
+          backgroundColor: Colors.background,
           borderTopColor: Colors.border,
           borderTopWidth: 1,
           height: 88,
           paddingBottom: 28,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: Colors.text,
+        tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: Colors.textTertiary,
         tabBarLabelStyle: {
           fontSize: FontSize.xs,
@@ -66,8 +66,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'person-circle' : 'person-circle-outline'} focused={focused} />,
+          title: 'Chart',
+          tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'planet' : 'planet-outline'} focused={focused} />,
         }}
       />
     </Tabs>

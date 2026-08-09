@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -7,11 +7,12 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { storage } from '../../lib/storage';
-import { getMoonPhase, getCurrentZodiacSeason, MOON_PHASE_MEANINGS } from '../../lib/astrology';
+import { getMoonPhase, getCurrentZodiacSeason, MOON_PHASE_MEANINGS, ZODIAC_DETAILS } from '../../lib/astrology';
 import { calcPersonalYear, calcPersonalMonth, calcPersonalDay } from '../../lib/numerology';
 import { UserProfile, DailyCheckin } from '../../types';
 import { Colors, Spacing, Radius } from '../../constants/theme';
@@ -30,6 +31,7 @@ export default function TodayScreen() {
   const today = new Date();
   const moon = getMoonPhase(today);
   const zodiacSeason = getCurrentZodiacSeason(today);
+  const zodiacDetail = ZODIAC_DETAILS[zodiacSeason];
   const dateStr = format(today, 'yyyy-MM-dd');
 
   const load = useCallback(async () => {
@@ -61,8 +63,8 @@ export default function TodayScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.text} />}
+        contentContainerStyle={[styles.scroll, Platform.OS === 'web' && styles.scrollWeb]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -79,7 +81,7 @@ export default function TodayScreen() {
             <View style={styles.moonLeft}>
               <Label variant="micro" color={Colors.textTertiary}>Moon</Label>
               <Label variant="heading">{moon.phase}</Label>
-              <Label variant="caption">in {moon.sign}</Label>
+              <Label variant="caption" color={Colors.textSecondary}>in {moon.sign}</Label>
             </View>
             <View style={styles.moonRight}>
               <Label style={styles.moonEmoji}>{moon.phaseEmoji}</Label>
@@ -92,24 +94,55 @@ export default function TodayScreen() {
           </Label>
         </Card>
 
-        <View style={styles.statsRow}>
-          <Card style={styles.statCard}>
-            <Label variant="micro" color={Colors.textTertiary}>Season</Label>
-            <Label variant="body" style={styles.statValue}>{zodiacSeason}</Label>
+        {zodiacDetail && (
+          <Card>
+            <View style={styles.zodiacHeader}>
+              <View>
+                <Label variant="micro" color={Colors.textTertiary}>Zodiac Season</Label>
+                <Label variant="heading">{zodiacSeason} {zodiacDetail.symbol}</Label>
+              </View>
+              <View style={styles.elementBadge}>
+                <Label variant="micro" style={{ color: Colors.accent }}>{zodiacDetail.element}</Label>
+              </View>
+            </View>
+            <Label variant="caption" color={Colors.textSecondary} style={{ marginBottom: Spacing.sm }}>
+              {zodiacDetail.description}
+            </Label>
+            <View style={styles.zodiacMeta}>
+              <Label variant="micro" color={Colors.textTertiary}>♟ {zodiacDetail.quality}</Label>
+              <Label variant="micro" color={Colors.textTertiary}>⬡ {zodiacDetail.rulingPlanet}</Label>
+            </View>
+            <View style={styles.keywordRow}>
+              {zodiacDetail.keywords.map(k => (
+                <View key={k} style={styles.keyword}>
+                  <Label variant="micro" color={Colors.textSecondary}>{k}</Label>
+                </View>
+              ))}
+            </View>
           </Card>
-          {personalNums && (
-            <>
-              <Card style={styles.statCard}>
+        )}
+
+        {personalNums && (
+          <Card>
+            <Label variant="micro" color={Colors.textTertiary} style={{ marginBottom: Spacing.sm }}>Numerology</Label>
+            <View style={styles.numsRow}>
+              <View style={styles.numItem}>
+                <Label variant="heading" style={{ color: Colors.accent }}>{personalNums.day}</Label>
                 <Label variant="micro" color={Colors.textTertiary}>Personal Day</Label>
-                <Label variant="heading" style={styles.statValue}>{personalNums.day}</Label>
-              </Card>
-              <Card style={styles.statCard}>
+              </View>
+              <View style={styles.numDivider} />
+              <View style={styles.numItem}>
+                <Label variant="heading">{personalNums.month}</Label>
                 <Label variant="micro" color={Colors.textTertiary}>Personal Month</Label>
-                <Label variant="heading" style={styles.statValue}>{personalNums.month}</Label>
-              </Card>
-            </>
-          )}
-        </View>
+              </View>
+              <View style={styles.numDivider} />
+              <View style={styles.numItem}>
+                <Label variant="heading">{personalNums.year}</Label>
+                <Label variant="micro" color={Colors.textTertiary}>Personal Year</Label>
+              </View>
+            </View>
+          </Card>
+        )}
 
         <Card elevated>
           {todayCheckin ? (
@@ -128,7 +161,7 @@ export default function TodayScreen() {
         <TouchableOpacity style={styles.oracleBanner} onPress={() => router.push('/(tabs)/oracle')} activeOpacity={0.8}>
           <Label variant="micro" color={Colors.textTertiary}>AI Oracle</Label>
           <Label variant="body">What patterns are emerging?</Label>
-          <Label variant="caption" color={Colors.textSecondary}>Ask the Oracle →</Label>
+          <Label variant="caption" style={{ color: Colors.accent }}>Ask the Oracle →</Label>
         </TouchableOpacity>
       </ScrollView>
 
@@ -174,10 +207,10 @@ function CheckinSummary({ checkin }: { checkin: DailyCheckin }) {
 function CheckinStat({ label, value, max }: { label: string; value: number; max: number }) {
   return (
     <View style={styles.checkinStat}>
-      <Label variant="heading">{value}</Label>
+      <Label variant="heading" style={{ color: Colors.accent }}>{value}</Label>
       <Label variant="micro" color={Colors.textTertiary}>{label}</Label>
       <View style={styles.barTrack}>
-        <View style={[styles.barFill, { width: `${(value / max) * 100}%` }]} />
+        <View style={[styles.barFill, { width: `${(value / max) * 100}%` as `${number}%` }]} />
       </View>
     </View>
   );
@@ -255,7 +288,7 @@ function SliderRow({ label, value, onChange }: { label: string; value: number; o
     <View style={styles.sliderRow}>
       <View style={styles.sliderLabel}>
         <Label variant="body">{label}</Label>
-        <Label variant="heading">{value}</Label>
+        <Label variant="heading" style={{ color: Colors.accent }}>{value}</Label>
       </View>
       <View style={styles.sliderDots}>
         {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
@@ -269,17 +302,23 @@ function SliderRow({ label, value, onChange }: { label: string; value: number; o
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   scroll: { padding: Spacing.xl, paddingTop: 60, gap: Spacing.md },
+  scrollWeb: { maxWidth: 640, alignSelf: 'center', width: '100%' },
   header: { marginBottom: Spacing.sm },
   moonCard: { marginBottom: 0 },
   moonRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   moonLeft: { gap: 2 },
   moonRight: { alignItems: 'flex-end', gap: 4 },
   moonEmoji: { fontSize: 48 },
-  statsRow: { flexDirection: 'row', gap: Spacing.sm },
-  statCard: { flex: 1, padding: Spacing.md, gap: 4 },
-  statValue: { marginTop: 2 },
+  zodiacHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.sm },
+  elementBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.borderGlow, backgroundColor: Colors.accentGlow },
+  zodiacMeta: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.sm },
+  keywordRow: { flexDirection: 'row', gap: Spacing.xs, flexWrap: 'wrap', marginTop: Spacing.xs },
+  keyword: { paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full, backgroundColor: Colors.border },
+  numsRow: { flexDirection: 'row', alignItems: 'center' },
+  numItem: { flex: 1, alignItems: 'center', gap: 4 },
+  numDivider: { width: 1, height: 32, backgroundColor: Colors.border },
   oracleBanner: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
@@ -291,7 +330,7 @@ const styles = StyleSheet.create({
   checkinRow: { flexDirection: 'row', gap: Spacing.md },
   checkinStat: { flex: 1, alignItems: 'center', gap: 4 },
   barTrack: { width: '100%', height: 2, backgroundColor: Colors.border, borderRadius: 1, marginTop: 4 },
-  barFill: { height: 2, backgroundColor: Colors.text, borderRadius: 1 },
+  barFill: { height: 2, backgroundColor: Colors.accent, borderRadius: 1 },
   modal: { flex: 1, backgroundColor: Colors.background, padding: Spacing.xl, paddingTop: Spacing.lg },
   modalHandle: { width: 36, height: 4, backgroundColor: Colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.xl },
   modalInput: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, padding: Spacing.md, color: Colors.text, fontSize: 15 },
@@ -302,5 +341,5 @@ const styles = StyleSheet.create({
   sliderDots: { flexDirection: 'row', gap: Spacing.xs },
   dotWrapper: { flex: 1, alignItems: 'center', paddingVertical: Spacing.xs },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.border },
-  dotActive: { backgroundColor: Colors.text },
+  dotActive: { backgroundColor: Colors.accent },
 });

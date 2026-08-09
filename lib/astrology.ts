@@ -85,6 +85,38 @@ export function getSunSign(birthDate: string): string {
   return getCurrentZodiacSeason(date);
 }
 
+export function getMoonSignApprox(date: Date): string {
+  return getMoonPhase(date).sign;
+}
+
+export function getBirthMoonPhase(birthDate: string): Pick<MoonData, 'phase' | 'phaseEmoji'> {
+  const date = new Date(birthDate + 'T12:00:00Z');
+  const { phase, phaseEmoji } = getMoonPhase(date);
+  return { phase, phaseEmoji };
+}
+
+export const ZODIAC_DETAILS: Record<string, {
+  symbol: string;
+  element: 'Fire' | 'Earth' | 'Air' | 'Water';
+  quality: 'Cardinal' | 'Fixed' | 'Mutable';
+  rulingPlanet: string;
+  keywords: string[];
+  description: string;
+}> = {
+  Aries: { symbol: '♈', element: 'Fire', quality: 'Cardinal', rulingPlanet: 'Mars', keywords: ['Initiative', 'Courage', 'Action'], description: 'Pioneer of the zodiac — bold, direct, energized by new beginnings.' },
+  Taurus: { symbol: '♉', element: 'Earth', quality: 'Fixed', rulingPlanet: 'Venus', keywords: ['Stability', 'Sensuality', 'Patience'], description: 'Grounded and enduring — drawn to beauty, comfort, and lasting value.' },
+  Gemini: { symbol: '♊', element: 'Air', quality: 'Mutable', rulingPlanet: 'Mercury', keywords: ['Curiosity', 'Communication', 'Adaptability'], description: 'The twins in constant motion — quick-witted, versatile, endlessly curious.' },
+  Cancer: { symbol: '♋', element: 'Water', quality: 'Cardinal', rulingPlanet: 'Moon', keywords: ['Nurturing', 'Intuition', 'Memory'], description: 'The cosmic caretaker — deeply intuitive, fiercely protective of those they love.' },
+  Leo: { symbol: '♌', element: 'Fire', quality: 'Fixed', rulingPlanet: 'Sun', keywords: ['Creativity', 'Confidence', 'Leadership'], description: 'The radiant sovereign — generous, dramatic, born to shine.' },
+  Virgo: { symbol: '♍', element: 'Earth', quality: 'Mutable', rulingPlanet: 'Mercury', keywords: ['Precision', 'Service', 'Analysis'], description: 'The perfectionist healer — discerning, diligent, devoted to craft and wellness.' },
+  Libra: { symbol: '♎', element: 'Air', quality: 'Cardinal', rulingPlanet: 'Venus', keywords: ['Balance', 'Harmony', 'Justice'], description: 'The cosmic diplomat — seeking equilibrium, beauty, and meaningful connection.' },
+  Scorpio: { symbol: '♏', element: 'Water', quality: 'Fixed', rulingPlanet: 'Pluto', keywords: ['Depth', 'Transformation', 'Intensity'], description: 'The alchemist of the zodiac — penetrating, magnetic, unafraid of the abyss.' },
+  Sagittarius: { symbol: '♐', element: 'Fire', quality: 'Mutable', rulingPlanet: 'Jupiter', keywords: ['Freedom', 'Philosophy', 'Adventure'], description: 'The eternal wanderer — expansive in mind and spirit, chasing truth and horizon.' },
+  Capricorn: { symbol: '♑', element: 'Earth', quality: 'Cardinal', rulingPlanet: 'Saturn', keywords: ['Ambition', 'Structure', 'Mastery'], description: 'The mountain climber — disciplined, strategic, quietly unstoppable.' },
+  Aquarius: { symbol: '♒', element: 'Air', quality: 'Fixed', rulingPlanet: 'Uranus', keywords: ['Innovation', 'Humanity', 'Originality'], description: 'The visionary rebel — ahead of its time, dedicated to collective evolution.' },
+  Pisces: { symbol: '♓', element: 'Water', quality: 'Mutable', rulingPlanet: 'Neptune', keywords: ['Empathy', 'Dreams', 'Surrender'], description: 'The mystic dissolving all boundaries — compassionate, imaginative, deeply spiritual.' },
+};
+
 export const MOON_PHASE_MEANINGS: Record<string, string> = {
   'New Moon': 'A time for intention-setting and new beginnings.',
   'Waxing Crescent': 'Build momentum toward your intentions.',
