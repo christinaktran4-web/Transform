@@ -4,8 +4,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { storage } from '../../lib/storage';
 import { UserProfile } from '../../types';
-import { calcPersonalYear, calcPersonalMonth, calcPersonalDay, calcDestiny, calcLifePath, LIFE_PATH_MEANINGS, PERSONAL_YEAR_MEANINGS } from '../../lib/numerology';
-import { getSunSign, getMoonSignApprox, getBirthMoonPhase, ZODIAC_DETAILS } from '../../lib/astrology';
+import { calcPersonalYear, calcPersonalMonth, calcPersonalDay, calcDestiny, calcLifePath, LIFE_PATH_MEANINGS, PERSONAL_YEAR_MEANINGS, LIFE_PATH_DEEP } from '../../lib/numerology';
+import { getSunSign, getMoonSignApprox, getBirthMoonPhase, ZODIAC_DETAILS, getCuspInfo, ELEMENT_AURA } from '../../lib/astrology';
 import { ENNEAGRAM_TYPES } from '../../lib/enneagram';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { Label } from '../../components/ui/Label';
@@ -80,6 +80,13 @@ export default function ProfileScreen() {
       },
     ]);
 
+  const saveSignOverride = async (sign: string) => {
+    if (!profile) return;
+    const updated = { ...profile, sun_sign_override: sign };
+    await storage.setProfile(updated);
+    setProfile(updated);
+  };
+
   if (!profile) return null;
 
   const today = new Date();
@@ -89,15 +96,20 @@ export default function ProfileScreen() {
     day: calcPersonalDay(profile.birth_date, today.getFullYear(), today.getMonth() + 1, today.getDate()),
   };
   const destiny = calcDestiny(profile.name);
-  const sunSign = getSunSign(profile.birth_date);
+  const sunSign = getSunSign(profile.birth_date, profile.sun_sign_override);
   const sunDetail = ZODIAC_DETAILS[sunSign];
+  const sunAura = ELEMENT_AURA[sunDetail?.element ?? ''];
   const moonSign = getMoonSignApprox(new Date(profile.birth_date + 'T12:00:00Z'));
   const moonDetail = ZODIAC_DETAILS[moonSign];
+  const moonAura = ELEMENT_AURA[moonDetail?.element ?? ''];
   const birthMoon = getBirthMoonPhase(profile.birth_date);
   const hasRising = !profile.birth_time_unknown && !!profile.birth_time;
   const pyMeaning = PERSONAL_YEAR_MEANINGS[personalNums.year];
   const enneagram = profile.enneagram_type ? ENNEAGRAM_TYPES[profile.enneagram_type] : null;
+  const lifePathDeep = LIFE_PATH_DEEP[profile.life_path_number];
   const birthDateDisplay = format(parseBirthDate(profile.birth_date), 'MMMM d, yyyy');
+  const cuspInfo = getCuspInfo(profile.birth_date);
+  const showCuspPicker = !!cuspInfo && !profile.sun_sign_override;
 
   return (
     <ScrollView
@@ -134,21 +146,40 @@ export default function ProfileScreen() {
         ))}
       </View>
 
+      {showCuspPicker && (
+        <CuspPickerCard cuspInfo={cuspInfo} onPick={saveSignOverride} />
+      )}
+
       {/* Your Reading */}
       <Card>
         <Label variant="heading" style={{ marginBottom: Spacing.md }}>Your Reading</Label>
 
         <ReadingSection label="Sun Sign" icon={sunDetail?.symbol}>
-          <Label variant="body" style={{ color: Colors.accent }}>{sunSign}</Label>
+          <Label variant="body" style={{ color: sunAura?.color ?? Colors.accent }}>{sunSign}</Label>
           <Label variant="caption" color={Colors.textTertiary}>{sunDetail?.element} · {sunDetail?.quality} · ruled by {sunDetail?.rulingPlanet}</Label>
           {sunDetail && <Label variant="caption" color={Colors.textSecondary} style={styles.readingBody}>{sunDetail.description}</Label>}
+          {cuspInfo && profile.sun_sign_override && (
+            <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: 4 }}>
+              ✦ Cusp: {cuspInfo.signs[0]} / {cuspInfo.signs[1]} · you chose {profile.sun_sign_override}
+            </Label>
+          )}
+          {sunDetail?.deepDive && (
+            <RevealCard label="Your Sun sign secret ✦">
+              <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>{sunDetail.deepDive}</Label>
+            </RevealCard>
+          )}
         </ReadingSection>
 
         <Divider />
         <ReadingSection label="Moon Sign" icon={moonDetail?.symbol}>
-          <Label variant="body">{moonSign}</Label>
+          <Label variant="body" style={{ color: moonAura?.color ?? Colors.text }}>{moonSign}</Label>
           <Label variant="caption" color={Colors.textTertiary}>{moonDetail?.element} · born under {birthMoon.phaseEmoji} {birthMoon.phase}</Label>
           {moonDetail && <Label variant="caption" color={Colors.textSecondary} style={styles.readingBody}>{moonDetail.description}</Label>}
+          {moonDetail?.deepDive && (
+            <RevealCard label="Your Moon sign secret ✦">
+              <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>{moonDetail.deepDive}</Label>
+            </RevealCard>
+          )}
         </ReadingSection>
 
         <Divider />
@@ -159,6 +190,18 @@ export default function ProfileScreen() {
           <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4 }}>
             Sun in {sunSign} + Life Path {profile.life_path_number}: your {sunDetail?.element?.toLowerCase()} nature channels through a path of {LIFE_PATH_MEANINGS[profile.life_path_number]?.split('—')[0]?.trim()?.toLowerCase() ?? 'purpose'}.
           </Label>
+          {lifePathDeep && (
+            <RevealCard label="Your Life Path secret ✦">
+              <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>{lifePathDeep.deepDive}</Label>
+              <View style={styles.giftList}>
+                {lifePathDeep.gifts.map(g => (
+                  <Label key={g} variant="micro" color={Colors.textSecondary} style={styles.giftItem}>✦ {g}</Label>
+                ))}
+              </View>
+              <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.xs }}>Shadow: {lifePathDeep.shadow}</Label>
+              <Label variant="micro" style={{ color: Colors.accent, marginTop: Spacing.xs, fontStyle: 'italic' }}>"{lifePathDeep.mantra}"</Label>
+            </RevealCard>
+          )}
         </ReadingSection>
 
         {enneagram && (
@@ -170,6 +213,13 @@ export default function ProfileScreen() {
               <Label variant="caption" color={Colors.textTertiary} style={{ marginTop: 4 }}>
                 Core desire: {enneagram.coreDesire.toLowerCase()}.
               </Label>
+              {enneagram.deepDive && (
+                <RevealCard label="Your Enneagram secret ✦">
+                  <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>{enneagram.deepDive}</Label>
+                  <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.xs }}>{enneagram.growthPath}</Label>
+                  <Label variant="micro" style={{ color: Colors.accent, marginTop: Spacing.xs, fontStyle: 'italic' }}>"{enneagram.mantra}"</Label>
+                </RevealCard>
+              )}
             </ReadingSection>
           </>
         )}
@@ -180,7 +230,9 @@ export default function ProfileScreen() {
             <>
               <Label variant="body" style={{ color: Colors.accent }}>{pyMeaning.title}</Label>
               <Label variant="caption" color={Colors.textTertiary}>{pyMeaning.theme}</Label>
-              <Label variant="caption" color={Colors.textSecondary} style={styles.readingBody}>{pyMeaning.description}</Label>
+              <RevealCard label="What this year holds ✦">
+                <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>{pyMeaning.description}</Label>
+              </RevealCard>
             </>
           )}
         </ReadingSection>
@@ -191,21 +243,29 @@ export default function ProfileScreen() {
         <Label variant="heading" style={{ marginBottom: Spacing.md }}>Astrological Profile</Label>
 
         <Label variant="micro" color={Colors.textTertiary} style={{ marginBottom: Spacing.xs }}>Sun Sign</Label>
-        <View style={styles.signRow}>
-          <Label variant="body" style={{ color: Colors.accent }}>{sunSign} {sunDetail?.symbol}</Label>
-          <Label variant="caption" color={Colors.textTertiary}>{sunDetail?.element} · {sunDetail?.quality}</Label>
-        </View>
-        <View style={styles.keywordRow}>
-          {sunDetail?.keywords.map(k => <View key={k} style={styles.keyword}><Label variant="micro" color={Colors.textSecondary}>{k}</Label></View>)}
+        <View style={[styles.auraSection, sunAura && { borderColor: sunAura.border, borderWidth: 1 }]}>
+          <View style={styles.signRow}>
+            <Label variant="body" style={{ color: sunAura?.color ?? Colors.accent }}>{sunSign} {sunDetail?.symbol}</Label>
+            <Label variant="caption" color={Colors.textTertiary}>{sunDetail?.element} · {sunDetail?.quality}</Label>
+          </View>
+          <View style={styles.keywordRow}>
+            {sunDetail?.keywords.map(k => (
+              <View key={k} style={[styles.keyword, sunAura && { borderColor: sunAura.border, borderWidth: 1 }]}>
+                <Label variant="micro" style={{ color: sunAura?.color ?? Colors.textSecondary }}>{k}</Label>
+              </View>
+            ))}
+          </View>
         </View>
 
         <Divider />
         <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm, marginBottom: Spacing.xs }}>Moon Sign (birth)</Label>
-        <View style={styles.signRow}>
-          <Label variant="body">{moonSign} {moonDetail?.symbol}</Label>
-          <Label variant="caption" color={Colors.textTertiary}>{moonDetail?.element} · {moonDetail?.quality}</Label>
+        <View style={[styles.auraSection, moonAura && { borderColor: moonAura.border, borderWidth: 1 }]}>
+          <View style={styles.signRow}>
+            <Label variant="body" style={{ color: moonAura?.color ?? Colors.text }}>{moonSign} {moonDetail?.symbol}</Label>
+            <Label variant="caption" color={Colors.textTertiary}>{moonDetail?.element} · {moonDetail?.quality}</Label>
+          </View>
+          <Label variant="caption" color={Colors.textSecondary}>Born under the {birthMoon.phaseEmoji} {birthMoon.phase}</Label>
         </View>
-        <Label variant="caption" color={Colors.textSecondary}>Born under the {birthMoon.phaseEmoji} {birthMoon.phase}</Label>
 
         <Divider />
         <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm, marginBottom: Spacing.xs }}>Rising Sign</Label>
@@ -246,6 +306,13 @@ export default function ProfileScreen() {
           <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm }}>
             Wings: {enneagram.wing1} · {enneagram.wing2}
           </Label>
+          <Divider />
+          <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.sm, marginBottom: 4 }}>Growth Path</Label>
+          <Label variant="caption" color={Colors.textSecondary}>{enneagram.growthPath}</Label>
+          <Label variant="micro" style={{ color: Colors.accent, marginTop: Spacing.sm, fontStyle: 'italic' }}>"{enneagram.mantra}"</Label>
+          <RevealCard label="Deep dive ✦">
+            <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>{enneagram.deepDive}</Label>
+          </RevealCard>
         </Card>
       ) : (
         <Card>
@@ -262,9 +329,20 @@ export default function ProfileScreen() {
         <Label variant="heading" style={{ marginBottom: Spacing.md }}>Numerology</Label>
         <ProfileRow label="Life Path" value={`${profile.life_path_number}`} />
         <Divider />
-        <Label variant="caption" color={Colors.textSecondary} style={{ marginBottom: Spacing.md }}>
+        <Label variant="caption" color={Colors.textSecondary} style={{ marginBottom: Spacing.sm }}>
           {LIFE_PATH_MEANINGS[profile.life_path_number]}
         </Label>
+        {lifePathDeep && (
+          <RevealCard label="Life Path deep dive ✦">
+            <Label variant="caption" color={Colors.textSecondary} style={styles.deepDiveText}>{lifePathDeep.deepDive}</Label>
+            <View style={styles.giftList}>
+              {lifePathDeep.gifts.map(g => <Label key={g} variant="micro" color={Colors.textSecondary} style={styles.giftItem}>✦ {g}</Label>)}
+            </View>
+            <Label variant="micro" color={Colors.textTertiary} style={{ marginTop: Spacing.xs }}>Shadow: {lifePathDeep.shadow}</Label>
+            <Label variant="micro" style={{ color: Colors.accent, marginTop: Spacing.xs, fontStyle: 'italic' }}>"{lifePathDeep.mantra}"</Label>
+          </RevealCard>
+        )}
+        <Divider />
         <ProfileRow label="Destiny Number" value={`${destiny}`} />
         <Divider />
         <ProfileRow label="Personal Year" value={`${personalNums.year} — ${pyMeaning?.title ?? ''}`} />
@@ -300,6 +378,62 @@ export default function ProfileScreen() {
   );
 }
 
+function RevealCard({ label = 'Reveal more ✦', children }: { label?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ marginTop: Spacing.sm }}>
+      <TouchableOpacity onPress={() => setOpen(v => !v)} activeOpacity={0.7}>
+        <Label variant="micro" style={{ color: Colors.accent }}>
+          {open ? '✦ Close' : label}
+        </Label>
+      </TouchableOpacity>
+      {open && (
+        <View style={styles.revealContent}>
+          {children}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function CuspPickerCard({
+  cuspInfo,
+  onPick,
+}: {
+  cuspInfo: { isCusp: boolean; signs: [string, string] };
+  onPick: (sign: string) => void;
+}) {
+  return (
+    <Card style={styles.cuspCard}>
+      <Label variant="micro" style={{ color: Colors.accent, marginBottom: Spacing.xs }}>✦ You're on the Cusp</Label>
+      <Label variant="heading" style={{ marginBottom: Spacing.xs }}>
+        {cuspInfo.signs[0]} / {cuspInfo.signs[1]}
+      </Label>
+      <Label variant="caption" color={Colors.textSecondary} style={{ marginBottom: Spacing.md, lineHeight: 20 }}>
+        Your birthday falls on the boundary between two signs. The Sun's exact crossing depends on the year and your birth time — so the call is yours to make. Choose the sign that resonates.
+      </Label>
+      <View style={styles.cuspOptions}>
+        {cuspInfo.signs.map(sign => {
+          const detail = ZODIAC_DETAILS[sign];
+          const aura = ELEMENT_AURA[detail?.element ?? ''];
+          return (
+            <TouchableOpacity
+              key={sign}
+              style={[styles.cuspOption, { borderColor: aura?.border ?? Colors.border }]}
+              onPress={() => onPick(sign)}
+              activeOpacity={0.75}
+            >
+              <Label style={styles.cuspSymbol}>{detail?.symbol}</Label>
+              <Label variant="body" style={{ color: aura?.color ?? Colors.text }}>{sign}</Label>
+              <Label variant="micro" color={Colors.textTertiary}>{detail?.element}</Label>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </Card>
+  );
+}
+
 function ReadingSection({ label, icon, children }: { label: string; icon?: string; children: React.ReactNode }) {
   return (
     <View style={styles.readingSection}>
@@ -328,6 +462,7 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
   const [birthTimeUnknown, setBirthTimeUnknown] = useState(profile.birth_time_unknown ?? false);
   const [location, setLocation] = useState(profile.birth_location);
   const [enneagramType, setEnneagramType] = useState<number | null>(profile.enneagram_type ?? null);
+  const [sunSignOverride, setSunSignOverride] = useState<string | null>(profile.sun_sign_override ?? null);
 
   React.useEffect(() => {
     if (visible) {
@@ -339,8 +474,11 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
       setBirthTimeUnknown(profile.birth_time_unknown ?? false);
       setLocation(profile.birth_location);
       setEnneagramType(profile.enneagram_type ?? null);
+      setSunSignOverride(profile.sun_sign_override ?? null);
     }
   }, [visible, profile]);
+
+  const currentCuspInfo = getCuspInfo(birthDate);
 
   const save = () => {
     if (!name.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || !location.trim()) return;
@@ -354,6 +492,7 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
       birth_location: location.trim(),
       life_path_number: calcLifePath(birthDate.trim()),
       enneagram_type: enneagramType,
+      sun_sign_override: currentCuspInfo ? sunSignOverride : null,
     };
     onSave(updated);
   };
@@ -396,6 +535,27 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
         </TouchableOpacity>
 
         <Input label="Birth Location" value={location} onChangeText={setLocation} placeholder="New York, USA" autoCapitalize="words" containerStyle={{ marginTop: Spacing.md, marginBottom: Spacing.lg }} />
+
+        {currentCuspInfo && (
+          <View style={{ marginBottom: Spacing.lg }}>
+            <Label variant="micro" color={Colors.accent} style={{ marginBottom: Spacing.xs }}>✦ Cusp Date Detected</Label>
+            <Label variant="caption" color={Colors.textSecondary} style={{ marginBottom: Spacing.sm }}>
+              {currentCuspInfo.signs[0]}/{currentCuspInfo.signs[1]} — pick the sign that resonates with you.
+            </Label>
+            <View style={styles.ampmRow}>
+              {currentCuspInfo.signs.map(sign => (
+                <TouchableOpacity
+                  key={sign}
+                  style={[styles.ampmBtn, sunSignOverride === sign && styles.ampmBtnActive]}
+                  onPress={() => setSunSignOverride(sunSignOverride === sign ? null : sign)}
+                  activeOpacity={0.7}
+                >
+                  <Label style={[styles.ampmLabel, sunSignOverride === sign && styles.ampmLabelActive]}>{sign}</Label>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
         <Label variant="micro" color={Colors.textTertiary} style={{ marginBottom: Spacing.sm }}>Enneagram Type</Label>
         <View style={styles.enneagramList}>
@@ -449,13 +609,45 @@ const styles = StyleSheet.create({
   readingSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: 4 },
   readingIcon: { fontSize: 14, color: Colors.textTertiary },
   readingBody: { lineHeight: 20, marginTop: 4 },
+  revealContent: {
+    marginTop: Spacing.sm,
+    padding: Spacing.md,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 4,
+  },
+  deepDiveText: { lineHeight: 22, fontStyle: 'italic' },
+  giftList: { marginTop: Spacing.sm, gap: 2 },
+  giftItem: { lineHeight: 20 },
+  auraSection: {
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    marginBottom: Spacing.sm,
+  },
   signRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
-  keywordRow: { flexDirection: 'row', gap: Spacing.xs, flexWrap: 'wrap', marginTop: Spacing.xs, marginBottom: Spacing.sm },
+  keywordRow: { flexDirection: 'row', gap: Spacing.xs, flexWrap: 'wrap', marginTop: Spacing.xs },
   keyword: { paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full, backgroundColor: Colors.border },
   strengthsRow: { flexDirection: 'row', gap: Spacing.xs, flexWrap: 'wrap', marginTop: Spacing.sm },
   profileRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 4, gap: Spacing.md },
   profileValue: { fontWeight: '500', flex: 1, textAlign: 'right' },
   dangerCard: { borderColor: '#FF3B3040' },
+  cuspCard: { borderColor: Colors.borderGlow, borderWidth: 1 },
+  cuspOptions: { flexDirection: 'row', gap: Spacing.md },
+  cuspOption: {
+    flex: 1,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    gap: 4,
+  },
+  cuspSymbol: { fontSize: 24 },
   modal: { flex: 1, backgroundColor: Colors.background, padding: Spacing.xl, paddingTop: Spacing.lg },
   modalHandle: { width: 36, height: 4, backgroundColor: Colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.xl },
   ampmRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },

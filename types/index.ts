@@ -9,6 +9,7 @@ export interface UserProfile {
   birth_lat: number | null;
   birth_lng: number | null;
   life_path_number: number;
+  sun_sign_override?: string | null;
   created_at: string;
 }
 

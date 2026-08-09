@@ -12,7 +12,7 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { storage } from '../../lib/storage';
-import { getMoonPhase, getCurrentZodiacSeason, MOON_PHASE_MEANINGS, ZODIAC_DETAILS } from '../../lib/astrology';
+import { getMoonPhase, getCurrentZodiacSeason, MOON_PHASE_MEANINGS, ZODIAC_DETAILS, ELEMENT_AURA } from '../../lib/astrology';
 import { calcPersonalYear, calcPersonalMonth, calcPersonalDay, PERSONAL_YEAR_MEANINGS } from '../../lib/numerology';
 import { UserProfile, DailyCheckin } from '../../types';
 import { Colors, Spacing, Radius } from '../../constants/theme';
@@ -95,14 +95,14 @@ export default function TodayScreen() {
         </Card>
 
         {zodiacDetail && (
-          <Card>
+          <Card style={ELEMENT_AURA[zodiacDetail.element] ? { borderColor: ELEMENT_AURA[zodiacDetail.element].border, borderWidth: 1 } : undefined}>
             <View style={styles.zodiacHeader}>
               <View>
                 <Label variant="micro" color={Colors.textTertiary}>Zodiac Season</Label>
                 <Label variant="heading">{zodiacSeason} {zodiacDetail.symbol}</Label>
               </View>
-              <View style={styles.elementBadge}>
-                <Label variant="micro" style={{ color: Colors.accent }}>{zodiacDetail.element}</Label>
+              <View style={[styles.elementBadge, ELEMENT_AURA[zodiacDetail.element] && { borderColor: ELEMENT_AURA[zodiacDetail.element].border }]}>
+                <Label variant="micro" style={{ color: ELEMENT_AURA[zodiacDetail.element]?.color ?? Colors.accent }}>{zodiacDetail.element}</Label>
               </View>
             </View>
             <Label variant="caption" color={Colors.textSecondary} style={{ marginBottom: Spacing.sm }}>
