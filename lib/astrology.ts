@@ -32,6 +32,58 @@ function julianDay(date: Date): number {
   );
 }
 
+// Exported for humanDesign.ts
+export function julianDayFromDate(year: number, month: number, day: number, hour = 12, minute = 0): number {
+  const a = Math.floor((14 - month) / 12);
+  const yr = year + 4800 - a;
+  const mo = month + 12 * a - 3;
+  const d = day + hour / 24 + minute / 1440;
+  return (
+    d +
+    Math.floor((153 * mo + 2) / 5) +
+    365 * yr +
+    Math.floor(yr / 4) -
+    Math.floor(yr / 100) +
+    Math.floor(yr / 400) -
+    32045
+  );
+}
+
+// Jean Meeus moon longitude (degrees, ecliptic)
+function getMoonLongitudeJD(jd: number): number {
+  const T = (jd - 2451545.0) / 36525;
+  const L0 = (218.3164477 + 481267.88123421 * T) % 360;
+  const M  = (134.9633964 + 477198.8675055  * T) % 360;
+  const D  = (297.8501921 + 445267.1114034  * T) % 360;
+  const Ms = (357.5291092 + 35999.0502909   * T) % 360;
+  const F  = (93.2720950  + 483202.0175233  * T) % 360;
+  const r = Math.PI / 180;
+  const corr =
+    6.288774  * Math.sin(M         * r) +
+    1.274027  * Math.sin((2*D - M) * r) +
+    0.658314  * Math.sin(2*D       * r) +
+    0.213618  * Math.sin(2*M       * r) +
+   -0.185116  * Math.sin(Ms        * r) +
+   -0.114332  * Math.sin(2*F       * r) +
+    0.058793  * Math.sin((2*D - 2*M)       * r) +
+    0.057066  * Math.sin((2*D - Ms - M)    * r) +
+    0.053322  * Math.sin((2*D + M)         * r) +
+    0.045758  * Math.sin((2*D - Ms)        * r);
+  return ((L0 + corr) % 360 + 360) % 360;
+}
+
+// Exported for humanDesign.ts
+export function getSunLongitudeJD(jd: number): number {
+  const T  = (jd - 2451545.0) / 36525;
+  const L0 = 280.46646 + 36000.76983 * T;
+  const M  = 357.52911 + 35999.05029 * T;
+  const Mr = (M % 360) * Math.PI / 180;
+  const C  = (1.914602 - 0.004817 * T) * Math.sin(Mr)
+           + 0.019993 * Math.sin(2 * Mr)
+           + 0.000289 * Math.sin(3 * Mr);
+  return ((L0 + C) % 360 + 360) % 360;
+}
+
 export function getMoonPhase(date: Date = new Date()): MoonData {
   const jd = julianDay(date);
   const knownNew = 2451549.5;
@@ -52,7 +104,7 @@ export function getMoonPhase(date: Date = new Date()): MoonData {
   else if (age < 23.99) { phase = 'Last Quarter'; phaseEmoji = '🌗'; }
   else { phase = 'Waning Crescent'; phaseEmoji = '🌘'; }
 
-  const moonLong = (age / synodicMonth * 360 + 218.316) % 360;
+  const moonLong = getMoonLongitudeJD(jd);
   const signIndex = Math.floor(moonLong / 30) % 12;
   const sign = ZODIAC_SIGNS[signIndex];
 

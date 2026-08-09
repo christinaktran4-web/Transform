@@ -6,6 +6,8 @@ export interface UserProfile {
   birth_time_unknown?: boolean;
   birth_location: string;
   enneagram_type?: number | null;
+  human_design_type?: string | null;
+  human_design_authority?: string | null;
   birth_lat: number | null;
   birth_lng: number | null;
   life_path_number: number;

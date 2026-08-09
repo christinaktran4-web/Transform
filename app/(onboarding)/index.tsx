@@ -11,15 +11,15 @@ import { useRouter } from 'expo-router';
 import { storage } from '../../lib/storage';
 import { calcLifePath } from '../../lib/numerology';
 import { UserProfile } from '../../types';
-import { ENNEAGRAM_TYPES } from '../../lib/enneagram';
+import { HD_TYPES, INNER_AUTHORITY_DESCRIPTIONS } from '../../lib/humanDesign';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { Label } from '../../components/ui/Label';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 
-type Step = 'welcome' | 'name' | 'birthdate' | 'birthtime' | 'location' | 'enneagram' | 'complete';
+type Step = 'welcome' | 'name' | 'birthdate' | 'birthtime' | 'location' | 'humandesign' | 'complete';
 
-const STEPS: Step[] = ['welcome', 'name', 'birthdate', 'birthtime', 'location', 'enneagram', 'complete'];
+const STEPS: Step[] = ['welcome', 'name', 'birthdate', 'birthtime', 'location', 'humandesign', 'complete'];
 
 function timeTo24h(time: string, ampm: 'AM' | 'PM'): string {
   const parts = time.trim().split(':');
@@ -41,7 +41,8 @@ export default function Onboarding() {
   const [ampm, setAmpm] = useState<'AM' | 'PM'>('AM');
   const [birthTimeUnknown, setBirthTimeUnknown] = useState(false);
   const [location, setLocation] = useState('');
-  const [enneagramType, setEnneagramType] = useState<number | null>(null);
+  const [hdType, setHdType] = useState<string | null>(null);
+  const [hdAuthority, setHdAuthority] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const stepIndex = STEPS.indexOf(step);
@@ -64,7 +65,8 @@ export default function Onboarding() {
         birth_lat: null,
         birth_lng: null,
         life_path_number: calcLifePath(birthDate),
-        enneagram_type: enneagramType,
+        human_design_type: hdType,
+        human_design_authority: hdAuthority,
         created_at: new Date().toISOString(),
       };
       await storage.setProfile(profile);
@@ -170,27 +172,43 @@ export default function Onboarding() {
           </FieldStep>
         )}
 
-        {step === 'enneagram' && (
-          <FieldStep title="What is your Enneagram type?" description="Your type reveals your core motivations and fears. You can skip and add this later.">
+        {step === 'humandesign' && (
+          <FieldStep title="What is your Human Design type?" description="Calculated from your birth data — this reveals your energy strategy and decision-making authority. Pick the one that resonates most.">
             <View style={styles.enneagramList}>
-              {Object.entries(ENNEAGRAM_TYPES).map(([num, t]) => {
-                const n = parseInt(num);
-                const active = enneagramType === n;
+              {Object.entries(HD_TYPES).map(([typeName, t]) => {
+                const active = hdType === typeName;
                 return (
-                  <TouchableOpacity key={n} onPress={() => setEnneagramType(active ? null : n)} activeOpacity={0.7}>
+                  <TouchableOpacity key={typeName} onPress={() => setHdType(active ? null : typeName)} activeOpacity={0.7}>
                     <View style={[styles.enneagramRow, active && styles.enneagramRowActive]}>
-                      <View style={[styles.enneagramNum, active && styles.enneagramNumActive]}>
-                        <Label style={[styles.enneagramNumText, active && styles.enneagramNumTextActive]}>{n}</Label>
-                      </View>
+                      <Label style={styles.hdIcon}>{t.icon}</Label>
                       <View style={{ flex: 1 }}>
-                        <Label variant="body">{t.name}</Label>
-                        <Label variant="caption" color={Colors.textSecondary} numberOfLines={1}>{t.alias} · {t.coreDesire}</Label>
+                        <Label variant="body">{typeName}</Label>
+                        <Label variant="caption" color={Colors.textSecondary} numberOfLines={1}>{t.strategy}</Label>
                       </View>
+                      <Label variant="micro" color={Colors.textTertiary}>{t.population}</Label>
                     </View>
                   </TouchableOpacity>
                 );
               })}
             </View>
+            {hdType && (
+              <View style={styles.authoritySection}>
+                <Label variant="micro" color={Colors.textTertiary} style={{ marginBottom: Spacing.xs }}>Inner Authority</Label>
+                {Object.entries(INNER_AUTHORITY_DESCRIPTIONS).map(([auth, info]) => {
+                  const active = hdAuthority === auth;
+                  return (
+                    <TouchableOpacity key={auth} onPress={() => setHdAuthority(active ? null : auth)} activeOpacity={0.7}>
+                      <View style={[styles.enneagramRow, active && styles.enneagramRowActive, { paddingVertical: Spacing.sm }]}>
+                        <View style={{ flex: 1 }}>
+                          <Label variant="body">{auth}</Label>
+                          <Label variant="caption" color={Colors.textSecondary} numberOfLines={1}>{info.short}</Label>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
           </FieldStep>
         )}
 
@@ -277,8 +295,6 @@ const styles = StyleSheet.create({
   enneagramList: { gap: Spacing.sm, marginTop: Spacing.xs },
   enneagramRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.md, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
   enneagramRowActive: { borderColor: Colors.accent, backgroundColor: Colors.accentGlow },
-  enneagramNum: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
-  enneagramNumActive: { backgroundColor: Colors.accent },
-  enneagramNumText: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textSecondary },
-  enneagramNumTextActive: { color: Colors.background },
+  hdIcon: { fontSize: 20, width: 28, textAlign: 'center' },
+  authoritySection: { marginTop: Spacing.md, gap: Spacing.sm },
 });

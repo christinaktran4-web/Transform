@@ -95,7 +95,16 @@ export default function TodayScreen() {
         </Card>
 
         {zodiacDetail && (
-          <Card style={ELEMENT_AURA[zodiacDetail.element] ? { borderColor: ELEMENT_AURA[zodiacDetail.element].border, borderWidth: 1 } : undefined}>
+          <Card style={ELEMENT_AURA[zodiacDetail.element] ? {
+            borderColor: ELEMENT_AURA[zodiacDetail.element].border,
+            borderWidth: 1,
+            backgroundColor: ELEMENT_AURA[zodiacDetail.element].glow,
+            shadowColor: ELEMENT_AURA[zodiacDetail.element].color,
+            shadowOpacity: 0.30,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: 0 },
+            elevation: 6,
+          } : undefined}>
             <View style={styles.zodiacHeader}>
               <View>
                 <Label variant="micro" color={Colors.textTertiary}>Zodiac Season</Label>
