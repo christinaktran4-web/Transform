@@ -1,0 +1,81 @@
+export interface UserProfile {
+  id: string;
+  name: string;
+  birth_date: string;
+  birth_time: string | null;
+  birth_time_unknown?: boolean;
+  birth_location: string;
+  enneagram_type?: number | null;
+  human_design_type?: string | null;
+  human_design_authority?: string | null;
+  birth_lat: number | null;
+  birth_lng: number | null;
+  life_path_number: number;
+  sun_sign_override?: string | null;
+  created_at: string;
+}
+
+export interface DailyCheckin {
+  id: string;
+  user_id: string;
+  date: string;
+  mood: number;
+  energy: number;
+  stress: number;
+  gratitude: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface DreamEntry {
+  id: string;
+  user_id: string;
+  date: string;
+  title: string;
+  content: string;
+  intensity: number;
+  tags: string[];
+  themes: string[];
+  created_at: string;
+}
+
+export interface Synchronicity {
+  id: string;
+  user_id: string;
+  date: string;
+  type: SynchronicityType;
+  description: string;
+  significance: number;
+  notes: string | null;
+  created_at: string;
+}
+
+export type SynchronicityType =
+  | 'number'
+  | 'animal'
+  | 'song'
+  | 'name'
+  | 'symbol'
+  | 'coincidence'
+  | 'intuition'
+  | 'other';
+
+export interface MoonPhase {
+  phase: string;
+  illumination: number;
+  emoji: string;
+  sign: string;
+}
+
+export interface OracleMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface NumerologyProfile {
+  lifePath: number;
+  destiny: number;
+  personalYear: number;
+  personalMonth: number;
+  personalDay: number;
+}
