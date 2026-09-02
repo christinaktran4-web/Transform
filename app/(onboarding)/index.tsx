@@ -22,6 +22,13 @@ type Step = 'welcome' | 'name' | 'birthdate' | 'birthtime' | 'location' | 'human
 
 const STEPS: Step[] = ['welcome', 'name', 'birthdate', 'birthtime', 'location', 'humandesign', 'complete'];
 
+function formatDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+}
+
 function timeTo24h(time: string, ampm: 'AM' | 'PM'): string {
   const parts = time.trim().split(':');
   if (parts.length !== 2) return '';
@@ -125,11 +132,11 @@ export default function Onboarding() {
         {step === 'birthdate' && (
           <FieldStep title="When were you born?" description="Your birth date anchors your numerology and astrological profile.">
             <Input
-              label="Birth date (YYYY-MM-DD)"
+              label="Birth date"
               value={birthDate}
-              onChangeText={setBirthDate}
+              onChangeText={t => setBirthDate(formatDateInput(t))}
               placeholder="1998-06-21"
-              keyboardType="numeric"
+              keyboardType="number-pad"
               autoFocus
               maxLength={10}
             />

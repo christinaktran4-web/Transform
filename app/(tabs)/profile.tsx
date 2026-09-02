@@ -18,6 +18,13 @@ import { Button } from '../../components/ui/Button';
 import { Divider } from '../../components/ui/Divider';
 import { Input } from '../../components/ui/Input';
 
+function formatDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+}
+
 function parseBirthDate(birthDate: string): Date {
   const [y, m, d] = birthDate.split('-').map(Number);
   return new Date(y, m - 1, d);
@@ -685,7 +692,7 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
         <Label variant="heading" style={{ marginBottom: Spacing.xl }}>Edit Profile</Label>
 
         <Input label="Name" value={name} onChangeText={setName} placeholder="Your name" autoCapitalize="words" containerStyle={{ marginBottom: Spacing.md }} />
-        <Input label="Birth Date (YYYY-MM-DD)" value={birthDate} onChangeText={setBirthDate} placeholder="1998-06-21" keyboardType="numeric" maxLength={10} containerStyle={{ marginBottom: Spacing.md }} />
+        <Input label="Birth Date" value={birthDate} onChangeText={t => setBirthDate(formatDateInput(t))} placeholder="1998-06-21" keyboardType="number-pad" maxLength={10} containerStyle={{ marginBottom: Spacing.md }} />
 
         <Input
           label="Birth Time (H:MM)"
