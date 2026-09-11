@@ -146,9 +146,23 @@ export function getPlanetGateLongitudes(jd: number): { name: string; lon: number
 }
 
 export async function geocodeLocation(location: string): Promise<{ lat: number; lon: number } | null> {
+  // Primary: Photon (OSM-backed, CORS-friendly, no API key required)
+  try {
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(location)}&limit=1`;
+    const resp = await fetch(url);
+    if (resp.ok) {
+      const data = await resp.json();
+      const f = data?.features?.[0];
+      if (f) {
+        // GeoJSON: coordinates are [lon, lat]
+        return { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] };
+      }
+    }
+  } catch {}
+  // Fallback: Nominatim
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
-    const resp = await fetch(url, { headers: { 'User-Agent': 'QuantifiedMysticism/1.0 astrology-app' } });
+    const resp = await fetch(url);
     if (!resp.ok) return null;
     const data = await resp.json();
     if (Array.isArray(data) && data.length > 0) {

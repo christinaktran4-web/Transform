@@ -90,7 +90,9 @@ export default function ProfileScreen() {
       profile.birth_lng,
     ).then(chart => {
       if (!cancelled) setNatalChart(chart);
-    }).catch(() => {});
+    }).catch(err => {
+      console.error('[NatalChart] build failed:', err);
+    });
     return () => { cancelled = true; };
   }, [profile?.birth_date, profile?.birth_time, profile?.birth_lat, profile?.birth_lng]);
 
@@ -647,7 +649,7 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
   const [birthTimeUnknown, setBirthTimeUnknown] = useState(profile.birth_time_unknown ?? false);
   const [location, setLocation] = useState(profile.birth_location);
   const [hdAuthority, setHdAuthority] = useState<string | null>(profile.human_design_authority ?? null);
-  const [sunSignOverride, setSunSignOverride] = useState<string | null>(profile.sun_sign_override ?? null);
+  const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
     if (visible) {
@@ -659,36 +661,38 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
       setBirthTimeUnknown(profile.birth_time_unknown ?? false);
       setLocation(profile.birth_location);
       setHdAuthority(profile.human_design_authority ?? null);
-      setSunSignOverride(profile.sun_sign_override ?? null);
     }
   }, [visible, profile]);
 
-  const currentCuspInfo = getCuspInfo(birthDate);
-
   const save = async () => {
     if (!name.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || !location.trim()) return;
-    const stored24h = birthTimeUnknown ? null : (birthTime.trim() ? timeTo24h(birthTime.trim(), ampm) || null : null);
-    let lat = profile.birth_lat;
-    let lng = profile.birth_lng;
-    if (location.trim() !== profile.birth_location || lat == null) {
-      const coords = await geocodeLocation(location.trim());
-      if (coords) { lat = coords.lat; lng = coords.lon; }
+    setSaving(true);
+    try {
+      const stored24h = birthTimeUnknown ? null : (birthTime.trim() ? timeTo24h(birthTime.trim(), ampm) || null : null);
+      let lat = profile.birth_lat;
+      let lng = profile.birth_lng;
+      if (location.trim() !== profile.birth_location || lat == null) {
+        const coords = await geocodeLocation(location.trim());
+        if (coords) { lat = coords.lat; lng = coords.lon; }
+      }
+      const updated: UserProfile = {
+        ...profile,
+        name: name.trim(),
+        birth_date: birthDate.trim(),
+        birth_time: stored24h,
+        birth_time_unknown: birthTimeUnknown,
+        birth_location: location.trim(),
+        birth_lat: lat,
+        birth_lng: lng,
+        life_path_number: calcLifePath(birthDate.trim()),
+        human_design_type: (() => { try { return getFullHumanDesign(birthDate.trim(), stored24h).type; } catch { return profile.human_design_type; } })(),
+        human_design_authority: hdAuthority,
+        sun_sign_override: null,
+      };
+      onSave(updated);
+    } finally {
+      setSaving(false);
     }
-    const updated: UserProfile = {
-      ...profile,
-      name: name.trim(),
-      birth_date: birthDate.trim(),
-      birth_time: stored24h,
-      birth_time_unknown: birthTimeUnknown,
-      birth_location: location.trim(),
-      birth_lat: lat,
-      birth_lng: lng,
-      life_path_number: calcLifePath(birthDate.trim()),
-      human_design_type: (() => { try { return getFullHumanDesign(birthDate.trim(), stored24h).type; } catch { return profile.human_design_type; } })(),
-      human_design_authority: hdAuthority,
-      sun_sign_override: currentCuspInfo ? sunSignOverride : null,
-    };
-    onSave(updated);
   };
 
   const canSave = name.trim().length >= 2 && /^\d{4}-\d{2}-\d{2}$/.test(birthDate) && location.trim().length >= 2;
@@ -730,27 +734,6 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
 
         <Input label="Birth Location" value={location} onChangeText={setLocation} placeholder="New York, USA" autoCapitalize="words" containerStyle={{ marginTop: Spacing.md, marginBottom: Spacing.lg }} />
 
-        {currentCuspInfo && (
-          <View style={{ marginBottom: Spacing.lg }}>
-            <Label variant="micro" color={Colors.accent} style={{ marginBottom: Spacing.xs }}>✦ Cusp Date Detected</Label>
-            <Label variant="caption" color={Colors.textSecondary} style={{ marginBottom: Spacing.sm }}>
-              {currentCuspInfo.signs[0]}/{currentCuspInfo.signs[1]} — pick the sign that resonates with you.
-            </Label>
-            <View style={styles.ampmRow}>
-              {currentCuspInfo.signs.map(sign => (
-                <TouchableOpacity
-                  key={sign}
-                  style={[styles.ampmBtn, sunSignOverride === sign && styles.ampmBtnActive]}
-                  onPress={() => setSunSignOverride(sunSignOverride === sign ? null : sign)}
-                  activeOpacity={0.7}
-                >
-                  <Label style={[styles.ampmLabel, sunSignOverride === sign && styles.ampmLabelActive]}>{sign}</Label>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
         <Label variant="micro" color={Colors.textTertiary} style={{ marginBottom: Spacing.sm }}>Inner Authority</Label>
         <View style={styles.enneagramList}>
           {Object.entries(INNER_AUTHORITY_DESCRIPTIONS).map(([auth, info]) => {
@@ -769,8 +752,8 @@ function EditProfileModal({ visible, profile, onClose, onSave }: EditProfileModa
         </View>
 
         <View style={[styles.modalFooter, { marginTop: Spacing.xl }]}>
-          <Button label="Cancel" variant="secondary" onPress={onClose} size="md" />
-          <Button label="Save" onPress={save} disabled={!canSave} size="md" />
+          <Button label="Cancel" variant="secondary" onPress={onClose} disabled={saving} size="md" />
+          <Button label="Save" onPress={save} disabled={!canSave || saving} loading={saving} size="md" />
         </View>
       </ScrollView>
     </Modal>
