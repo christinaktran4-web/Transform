@@ -219,7 +219,7 @@ function determineHDType(activatedGates: Set<number>): string {
   return 'Projector';
 }
 
-export function getFullHumanDesign(birthDate: string, birthTime?: string | null): {
+export function getFullHumanDesign(birthDate: string, birthTime?: string | null, utcOffsetHours = 0): {
   type: string;
   profile: string;
   profileName: string;
@@ -233,7 +233,9 @@ export function getFullHumanDesign(birthDate: string, birthTime?: string | null)
     const parts = birthTime.split(':').map(Number);
     if (parts.length === 2) { hour = parts[0]; minute = parts[1]; }
   }
-  const jdConscious = julianDayFromDate(y, m, d, hour, minute);
+  // Convert local birth time to UTC before computing JD
+  const jdLocal = julianDayFromDate(y, m, d, hour, minute);
+  const jdConscious = jdLocal - utcOffsetHours / 24;
   const jdUnconscious = jdConscious - 88.736;
   const consciousLons = getPlanetGateLongitudes(jdConscious);
   const unconsciousLons = getPlanetGateLongitudes(jdUnconscious);
