@@ -123,17 +123,20 @@ export default function ProfileScreen() {
     day: calcPersonalDay(profile.birth_date, today.getFullYear(), today.getMonth() + 1, today.getDate()),
   };
   const destiny = calcDestiny(profile.name);
-  const sunSign = getSunSign(profile.birth_date, profile.sun_sign_override);
+  // Use natal engine's precise Sun position when available; fall back to static table
+  const sunSign = natalChart?.planets.Sun.sign ?? getSunSign(profile.birth_date, profile.sun_sign_override);
   const sunDetail = ZODIAC_DETAILS[sunSign];
   const sunAura = ELEMENT_AURA[sunDetail?.element ?? ''];
   const birthMoon = getBirthMoonPhase(profile.birth_date);
   const pyMeaning = PERSONAL_YEAR_MEANINGS[personalNums.year];
-  const hdFull = getFullHumanDesign(profile.birth_date, profile.birth_time);
+  // Pass UTC offset so HD gate positions are computed in UTC, not local time
+  const hdFull = getFullHumanDesign(profile.birth_date, profile.birth_time, natalChart?.utcOffsetHours ?? 0);
   const hdType = HD_TYPES[hdFull.type];
   const lifePathDeep = LIFE_PATH_DEEP[profile.life_path_number];
   const birthDateDisplay = format(parseBirthDate(profile.birth_date), 'MMMM d, yyyy');
   const cuspInfo = getCuspInfo(profile.birth_date);
-  const showCuspPicker = !!cuspInfo && !profile.sun_sign_override;
+  // Only show cusp picker when we don't yet have a precise natal chart computation
+  const showCuspPicker = !natalChart && !!cuspInfo && !profile.sun_sign_override;
 
   // Derived chart values (safe to access when chart is ready)
   const moonSign   = natalChart?.planets.Moon.sign ?? '—';
@@ -317,7 +320,12 @@ export default function ProfileScreen() {
             </Label>
           </View>
           {natalChart && !natalChart.hasLocation && (
-            <Label variant="micro" style={{ color: Colors.accent }}>Rising requires location</Label>
+            <TouchableOpacity onPress={() => setEditVisible(true)}>
+              <Label variant="micro" style={{ color: Colors.accent }}>⚠ Location missing — tap Edit Profile to re-enter it</Label>
+            </TouchableOpacity>
+          )}
+          {natalChart && natalChart.hasLocation && !natalChart.hasTime && (
+            <Label variant="micro" style={{ color: Colors.accent }}>Add birth time for Rising & wheel</Label>
           )}
         </View>
 
